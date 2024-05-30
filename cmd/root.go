@@ -38,10 +38,10 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().IntVarP(&flagParallel, "parallel", "p", 1, "Number of parallel requests. (default 1)")
+	rootCmd.Flags().IntVarP(&flagParallel, "parallel", "p", 1, "Number of parallel requests.")
 	rootCmd.Flags().Int64VarP(&flagDelay, "delay", "d", 0, "Delay between requests in milliseconds. (default 0)")
-	rootCmd.Flags().IntVarP(&flagMaxDepth, "max-depth", "m", 0, "Set it to 0 for infinite recursion (default 0).")
-	rootCmd.Flags().StringVarP(&flagOutputFilename, "output-filepath", "o", "", "The statistic data is written to this file. Leave empty for no ouput file (default).")
+	rootCmd.Flags().IntVarP(&flagMaxDepth, "max-depth", "m", 0, "Set it to 0 for infinite recursion. (default 0)")
+	rootCmd.Flags().StringVarP(&flagOutputFilename, "output-filepath", "o", "", "The statistic data is written to this file. Leave empty for no ouput file. (default \"\")")
 }
 
 func warmItUp(url string, parallel int, delay int64) {

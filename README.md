@@ -9,24 +9,33 @@ force the cache building of a website or to test the availability of existing pa
 
 If you have `go` installed (Go version >= **1.22.3**) you can use `go install` to install the application on your system.
 
-```
+```bash
 go install github.com/robole-dev/grawler@latest
 ```
 
 ## Usage
 
-```
+```bash
 grawler <url>
 ```
 
 Example
 
-```
+```bash
 grawler https://www.google.de
 ```
 
-All options can be viewed via this command
+                 
+## Features
 
-```
+- Search and find all URLs that exist on a given page (`grawler <url>`)
+- Save informations of each request to an CSV file (`--output-filepath <path>` flag)
+- Make calls in parallel (`--parallel <num>` flag)
+- Limit the recursion depth (`--max-depth <num>` flag)
+- Set a delay on each request (`--delay <num>` flag) 
+
+More informations can be viewed via the help flag
+
+```bash
 grawler -h
 ```
