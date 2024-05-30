@@ -1,4 +1,4 @@
-module robole-dev/grawler
+module github.com/robole-dev/grawler
 
 go 1.22.3
 
