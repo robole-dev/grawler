@@ -3,7 +3,7 @@ SHELL:=/bin/bash
 .ONESHELL:
 
 APP_VERSION ?= "0.1.0"
-APP_EXECUTABLE ?= "termin-checker"
+APP_EXECUTABLE ?= "grawler"
 
 BUILD_COMMAND = CGO_ENABLED=0 go build -ldflags="-s -w"
 
@@ -15,6 +15,9 @@ build: FORCE setup
 setup: FORCE
 	go mod vendor
 	go mod tidy
+
+install: FORCE build
+	go install .
 
 test: FORCE
 
