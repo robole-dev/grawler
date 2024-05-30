@@ -118,10 +118,10 @@ func warmItUp(url string, parallel int, delay int64) {
 			duration := time.Since(reqResult.RequestAt)
 			totalDuration += duration
 			reqResult.UpdateOnResponse(r, responseCount, duration, &err)
+			fmt.Println("Error:", err)
 		} else {
 			fmt.Printf("Could not find request: %s\n", r.Request.URL)
 		}
-
 	})
 
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
