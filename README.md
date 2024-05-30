@@ -10,7 +10,7 @@ force the cache building of a website or to test the availability of existing pa
 If you have `go` installed (Go version >= **1.22.3**) you can use `go install` to install the application on your system.
 
 ```
-go install github.com/robole-dev/grawler
+go install github.com/robole-dev/grawler@latest
 ```
 
 ## Usage
