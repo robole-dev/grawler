@@ -1,4 +1,4 @@
-module robole-dev/cache-warmer
+module robole-dev/grawler
 
 go 1.22.3
 
