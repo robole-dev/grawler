@@ -93,6 +93,10 @@ func (r *Result) GetPrintRow() string {
 		row += " - Redirected from: " + r.urlRedirectedFrom
 	}
 
+	if r.HasError() {
+		row += " - Found on: " + r.foundOnUrl
+	}
+
 	return row
 
 }
