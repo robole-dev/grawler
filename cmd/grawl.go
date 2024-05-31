@@ -14,6 +14,7 @@ var (
 	flagPassword       string
 	flagUserAgent      string
 	flagSitemap        bool
+	flagAllowedDomains []string
 
 	grawlCmd = &cobra.Command{
 		Use:     "grawl",
@@ -37,6 +38,7 @@ func init() {
 	grawlCmd.Flags().StringVarP(&flagPassword, "password", "p", "", "Use this for HTTP Basic Authentication.")
 	grawlCmd.Flags().StringVar(&flagUserAgent, "user-agent", "", "Sets the user agent.")
 	grawlCmd.Flags().BoolVarP(&flagSitemap, "sitemap", "s", false, "Checks the sitemap. If this is flag is set the url parameter has to be the url to the sitemap.xml.")
+	grawlCmd.Flags().StringSliceVarP(&flagAllowedDomains, "allowed-domains", "a", nil, "A comma separated list of allowed domains to be crawled. The domain of the given url is always allowed.")
 }
 
 func warmItUp(url string) {
@@ -49,6 +51,7 @@ func warmItUp(url string) {
 	grawler.FlagPassword = flagPassword
 	grawler.FlagUserAgent = flagUserAgent
 	grawler.FlagSitemap = flagSitemap
+	grawler.FlagAllowedDomains = flagAllowedDomains
 
 	grawler.Grawl(url)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/manifoldco/promptui"
 	url2 "net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -27,6 +28,7 @@ type Grawler struct {
 	FlagPassword       string
 	FlagUserAgent      string
 	FlagSitemap        bool
+	FlagAllowedDomains []string
 
 	headerAuth string
 
@@ -74,13 +76,13 @@ func (g *Grawler) Grawl(url string) {
 		Delay:       time.Duration(g.FlagDelay) * time.Millisecond,
 	})
 	if err != nil {
-		fmt.Println("error setting limits:", err)
+		fmt.Println("Error setting limits:", err)
 		return
 	}
 
 	parsedUrl, err := url2.Parse(url)
 	if err != nil {
-		fmt.Println("error parsing the url:", err)
+		fmt.Println("Error parsing the url:", err)
 		return
 	}
 
@@ -88,6 +90,8 @@ func (g *Grawler) Grawl(url string) {
 	c.AllowedDomains = []string{
 		parsedUrl.Host,
 	}
+
+	c.AllowedDomains = slices.Concat(c.AllowedDomains, g.FlagAllowedDomains)
 
 	if g.FlagUsername != "" {
 		if g.FlagPassword == "" {
@@ -161,7 +165,6 @@ func (g *Grawler) Grawl(url string) {
 	})
 
 	if g.FlagSitemap {
-		fmt.Println("Look for sitemap")
 		c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
 			g.visit(c, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
 		})
