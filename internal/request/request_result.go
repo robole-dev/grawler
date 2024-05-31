@@ -3,8 +3,13 @@ package request
 import (
 	"fmt"
 	"github.com/gocolly/colly/v2"
+	"net/http"
 	"strconv"
 	"time"
+)
+
+const (
+	DateFormat = "2006-01-02 15:04:05.000"
 )
 
 type Result struct {
@@ -20,6 +25,8 @@ type Result struct {
 	ResponseAt        time.Time
 	StatusCode        int
 	Error             error
+	status            string
+	statusShort       string
 }
 
 func GetCsvHeader() []string {
@@ -45,14 +52,6 @@ func NewResult() *Result {
 }
 
 func (r *Result) GetCsvRow() []string {
-	success := "OK"
-	if r.StatusCode == 404 {
-		success = "Not found"
-	} else if r.StatusCode >= 400 {
-		success = "Not successful"
-	} else if r.Error != nil && r.StatusCode == 0 {
-		success = "Skipped"
-	}
 
 	errorText := ""
 	if r.Error != nil {
@@ -62,7 +61,7 @@ func (r *Result) GetCsvRow() []string {
 	record := []string{
 		//strconv.Itoa(r.index),
 		r.Url,
-		success,
+		r.status,
 		r.UrlHost,
 		r.UrlPath,
 		r.UrlParmeters,
@@ -78,11 +77,30 @@ func (r *Result) GetCsvRow() []string {
 	return record
 }
 
+func (r *Result) IsRedirected() bool {
+	return r.UrlRedirectedFrom != ""
+}
+
 func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration time.Duration, err *error) {
 
+	binary, err2 := response.Ctx.MarshalBinary()
+	if err2 != nil {
+		return
+	}
+
+	fmt.Println("header", binary)
 	if r.Url != response.Request.URL.String() {
 		r.UrlRedirectedFrom = r.Url
 		r.Url = response.Request.URL.String()
+	}
+
+	r.status = http.StatusText(r.StatusCode)
+	r.statusShort = StatusAbbreviation(r.StatusCode)
+
+	if r.Error != nil && r.StatusCode == 0 {
+		r.status = "Skipped"
+	} else if r.UrlRedirectedFrom != "" {
+		r.status = "Redirect"
 	}
 
 	r.Duration = duration
@@ -96,5 +114,62 @@ func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration 
 
 	if err != nil {
 		r.Error = *err
+	}
+}
+
+func (r *Result) GetPrintRow() string {
+	row := ""
+	row += "[" + r.ResponseAt.Format(DateFormat) + "]"
+	row += " "
+	row += strconv.Itoa(r.StatusCode)
+	row += " "
+	row += StatusAbbreviation(r.StatusCode)
+	row += " - "
+	row += r.Url
+
+	if r.IsRedirected() {
+		row += " - Redirected from: " + r.UrlRedirectedFrom
+	}
+
+	return row
+
+}
+
+func StatusAbbreviation(code int) string {
+	switch code {
+	case http.StatusOK:
+		return "OK"
+	case http.StatusCreated:
+		return "CR"
+	case http.StatusAccepted:
+		return "AC"
+	case http.StatusNoContent:
+		return "NC"
+	case http.StatusMovedPermanently:
+		return "MP"
+	case http.StatusFound:
+		return "FD"
+	case http.StatusSeeOther:
+		return "SO"
+	case http.StatusNotModified:
+		return "NM"
+	case http.StatusBadRequest:
+		return "BR"
+	case http.StatusUnauthorized:
+		return "UN"
+	case http.StatusForbidden:
+		return "FB"
+	case http.StatusNotFound:
+		return "NF"
+	case http.StatusInternalServerError:
+		return "IE"
+	case http.StatusNotImplemented:
+		return "NI"
+	case http.StatusBadGateway:
+		return "BG"
+	case http.StatusServiceUnavailable:
+		return "SU"
+	default:
+		return "??"
 	}
 }

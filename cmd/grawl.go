@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"encoding/csv"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/gocolly/colly/v2"
 	"github.com/manifoldco/promptui"
 	"github.com/robole-dev/grawler/internal/request"
@@ -47,9 +49,8 @@ func init() {
 	grawlCmd.Flags().IntVarP(&flagMaxDepth, "max-depth", "m", 0, "Set it to 0 for infinite recursion. (default 0)")
 	grawlCmd.Flags().StringVarP(&flagOutputFilename, "output-filepath", "o", "", "Write statistic data of each request to this file.")
 	grawlCmd.Flags().IntVarP(&flagParallel, "parallel", "l", 1, "Number of parallel requests.")
-	grawlCmd.Flags().StringVarP(&flagUsername, "username", "u", "", "Use this for HTTP Basic Authentication.")
-
-	grawlCmd.Flags().StringVarP(&flagPassword, "password", "p", "", "Use this for HTTP Basic Authentication. Leave empty for password prompt.")
+	grawlCmd.Flags().StringVarP(&flagUsername, "username", "u", "", "Use this for HTTP Basic Authentication. If you omit the password-flag a prompt will ask for the password.")
+	grawlCmd.Flags().StringVarP(&flagPassword, "password", "p", "", "Use this for HTTP Basic Authentication.")
 	grawlCmd.Flags().Lookup("password").NoOptDefVal = emptyFlagValue
 	//grawlCmd.Flags().Lookup("password").DefValue = ""
 
@@ -95,19 +96,18 @@ func warmItUp(url string) {
 		parsedUrl.Host,
 	}
 
-	//if flagUsername != "" {
-	//	fmt.Printf("pass '%v' \n", flagPassword)
-	//	if flagPassword == emptyFlagValue {
-	//		flagPassword, err = promptPassword()
-	//		if err != nil {
-	//			fmt.Println("Error reading password:", err)
-	//			return
-	//		}
-	//
-	//		var auth = base64.StdEncoding.EncodeToString([]byte(flagUsername + ":" + flagPassword))
-	//		headerAuth = fmt.Sprintf("Basic %s", auth)
-	//	}
-	//}
+	if flagUsername != "" {
+		if flagPassword == "" {
+			flagPassword, err = promptPassword()
+			if err != nil {
+				fmt.Println("Error reading password:", err)
+				return
+			}
+		}
+
+		var auth = base64.StdEncoding.EncodeToString([]byte(flagUsername + ":" + flagPassword))
+		headerAuth = fmt.Sprintf("Basic %s", auth)
+	}
 
 	c.OnRequest(func(r *colly.Request) {
 		if headerAuth != "" {
@@ -121,7 +121,7 @@ func warmItUp(url string) {
 		runningRequests.Store(r.ID, requestResult)
 		requestCount++
 		//fmt.Printf("%d - Visiting: %s\n", requestCount, r.URL)
-		fmt.Println("Visiting", r.URL)
+		//fmt.Println("Visiting", r.URL)
 	})
 
 	c.OnResponse(func(r *colly.Response) {
@@ -131,6 +131,7 @@ func warmItUp(url string) {
 			duration := time.Since(reqResult.RequestAt)
 			totalDuration += duration
 			reqResult.UpdateOnResponse(r, responseCount, duration, nil)
+			printResult(reqResult)
 		} else {
 			fmt.Printf("No start time found for %s\n", r.Request.URL)
 		}
@@ -143,7 +144,7 @@ func warmItUp(url string) {
 			duration := time.Since(reqResult.RequestAt)
 			totalDuration += duration
 			reqResult.UpdateOnResponse(r, responseCount, duration, &err)
-			fmt.Println("Error:", err)
+			//fmt.Println("Error:", err)
 		} else {
 			fmt.Printf("Could not find request: %s\n", r.Request.URL)
 		}
@@ -230,4 +231,14 @@ func promptPassword() (string, error) {
 
 	//fmt.Printf("You choose %q\n", result)
 	return result, nil
+}
+
+func printResult(result *request.Result) {
+	if result.IsRedirected() {
+		color.Yellow(result.GetPrintRow())
+	} else if result.Error != nil {
+		color.Red(result.GetPrintRow())
+	} else {
+		color.Green(result.GetPrintRow())
+	}
 }
