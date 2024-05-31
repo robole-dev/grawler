@@ -1,4 +1,4 @@
-package request
+package grawl
 
 import (
 	"fmt"
@@ -6,10 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-)
-
-const (
-	DateFormat = "2006-01-02 15:04:05.000"
 )
 
 type Result struct {
@@ -29,6 +25,7 @@ type Result struct {
 	error             error
 	status            string
 	statusShort       string
+	foundOnUrl        string
 }
 
 func GetCsvHeader() []string {
@@ -40,8 +37,9 @@ func GetCsvHeader() []string {
 		"Path",
 		"Parameters",
 		"Fragment",
-		"duration (ms)",
+		"Duration (ms)",
 		"Status code",
+		"Found on URL",
 		"Redirected from",
 		//"Request at",
 		"Response time",
@@ -49,12 +47,14 @@ func GetCsvHeader() []string {
 	}
 }
 
-func NewResult(id uint32, url string) *Result {
+func NewResult(id uint32, url string, foundOnUrl string) *Result {
+	//fmt.Println("found on", foundOnUrl)
 	return &Result{
-		id:        id,
-		orgUrl:    url,
-		url:       url,
-		requestAt: time.Now(),
+		id:         id,
+		orgUrl:     url,
+		url:        url,
+		foundOnUrl: foundOnUrl,
+		requestAt:  time.Now(),
 	}
 }
 
@@ -79,9 +79,10 @@ func (r *Result) GetCsvRow() []string {
 		r.urlFragment,
 		strconv.FormatInt(r.duration.Milliseconds(), 10),
 		strconv.Itoa(r.statusCode),
+		r.foundOnUrl,
 		r.urlRedirectedFrom,
 		//r.requestAt.String(),
-		r.responseAt.String(),
+		r.responseAt.Format(DateFormat),
 		errorText,
 	}
 
@@ -94,7 +95,7 @@ func (r *Result) IsRedirected() bool {
 
 func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration time.Duration, err *error) {
 
-	orgUrl := response.Request.Ctx.Get("orgUrl")
+	orgUrl := response.Request.Ctx.Get(ctxOrgUrl)
 
 	if orgUrl != response.Request.URL.String() {
 		r.urlRedirectedFrom = orgUrl

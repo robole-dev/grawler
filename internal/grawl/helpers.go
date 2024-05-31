@@ -1,4 +1,4 @@
-package request
+package grawl
 
 import "net/http"
 

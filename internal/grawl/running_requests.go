@@ -1,0 +1,94 @@
+package grawl
+
+import (
+	"sort"
+	"sync"
+)
+
+// @see https://medium.com/@deckarep/the-new-kid-in-town-gos-sync-map-de24a6bf7c2c
+
+type RunningRequests struct {
+	sync.RWMutex
+	results       map[uint32]*Result
+	idByUrl       map[string]uint32
+	foundUrlOnUrl map[string]string
+}
+
+func NewRunningRequests() *RunningRequests {
+	return &RunningRequests{
+		results:       make(map[uint32]*Result),
+		idByUrl:       make(map[string]uint32),
+		foundUrlOnUrl: make(map[string]string),
+	}
+}
+
+func (rr *RunningRequests) GetValues() *[]*Result {
+	rr.RLock()
+	defer rr.RUnlock()
+	values := make([]*Result, 0, len(rr.results))
+	for _, value := range rr.results {
+		values = append(values, value)
+	}
+
+	// Sorting
+	sort.Slice(values, func(i, j int) bool {
+		return (values)[i].url < (values)[j].url
+	})
+
+	return &values
+}
+
+func (rr *RunningRequests) Load(key uint32) (value *Result, ok bool) {
+	rr.RLock()
+	result, ok := rr.results[key]
+	rr.RUnlock()
+	return result, ok
+}
+
+func (rr *RunningRequests) LoadByUrl(url string) (value *Result, ok bool) {
+	rr.RLock()
+	var result *Result = nil
+	id, ok := rr.idByUrl[url]
+	if ok {
+		result, ok = rr.results[id]
+	}
+	rr.RUnlock()
+	return result, ok
+}
+
+func (rr *RunningRequests) Delete(key uint32) {
+	rr.Lock()
+	value, ok := rr.Load(key)
+	if ok && value.url != "" {
+		delete(rr.idByUrl, value.url)
+	}
+	delete(rr.results, key)
+	rr.Unlock()
+}
+
+func (rr *RunningRequests) Store(key uint32, value *Result, url string) *Result {
+	rr.Lock()
+	rr.results[key] = value
+	rr.idByUrl[url] = key
+	rr.Unlock()
+	return value
+}
+
+func (rr *RunningRequests) AddFoundUrl(url string, foundOnUrl string) {
+	rr.Lock()
+	_, ok := rr.foundUrlOnUrl[url]
+	if !ok {
+		rr.foundUrlOnUrl[url] = foundOnUrl
+	}
+	rr.Unlock()
+}
+
+func (rr *RunningRequests) GetFoundUrl(url string) string {
+	rr.Lock()
+	result, ok := rr.foundUrlOnUrl[url]
+	rr.Unlock()
+	if ok {
+		return result
+	}
+	return ""
+}
