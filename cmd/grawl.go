@@ -6,22 +6,12 @@ import (
 )
 
 var (
-	flagParallel         int
-	flagDelay            int64
-	flagMaxDepth         int
-	flagOutputFilename   string
-	flagUsername         string
-	flagPassword         string
-	flagUserAgent        string
-	flagSitemap          bool
-	flagAllowedDomains   []string
-	flagRespectRobotsTxt bool
-
+	flags    = grawl.Flags{}
 	grawlCmd = &cobra.Command{
 		Use:     "grawl",
 		Aliases: []string{"crawl"},
 		Short:   "Crawls the given url",
-		Long:    `The grawler searches for href-attributes and crawls these urls too.`,
+		Long:    `The grawler searches for href-attributes and crawls these urls too. It also crawles sitmap.xmls.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			url := args[0]
 			warmItUp(url)
@@ -31,30 +21,20 @@ var (
 )
 
 func init() {
-	grawlCmd.Flags().Int64VarP(&flagDelay, "delay", "d", 0, "Delay between requests in milliseconds. (default 0)")
-	grawlCmd.Flags().IntVarP(&flagMaxDepth, "max-depth", "m", 0, "Set it to 0 for infinite recursion. (default 0)")
-	grawlCmd.Flags().StringVarP(&flagOutputFilename, "output-filepath", "o", "", "Write statistic data of each request to this file.")
-	grawlCmd.Flags().IntVarP(&flagParallel, "parallel", "l", 1, "Number of parallel requests.")
-	grawlCmd.Flags().StringVarP(&flagUsername, "username", "u", "", "Use this for HTTP Basic Authentication. If you omit the password-flag a prompt will ask for the password.")
-	grawlCmd.Flags().StringVarP(&flagPassword, "password", "p", "", "Use this for HTTP Basic Authentication.")
-	grawlCmd.Flags().StringVar(&flagUserAgent, "user-agent", "", "Sets the user agent.")
-	grawlCmd.Flags().BoolVarP(&flagSitemap, "sitemap", "s", false, "Checks the sitemap. If this is flag is set the url parameter has to be the url to the sitemap.xml.")
-	grawlCmd.Flags().StringSliceVarP(&flagAllowedDomains, "allowed-domains", "a", nil, "A comma separated list of allowed domains to be crawled. The domain of the given url is always allowed.")
-	grawlCmd.Flags().BoolVar(&flagRespectRobotsTxt, "respect-robots-txt", false, "Respect the robots.txt file.")
+	grawlCmd.Flags().Int64VarP(&flags.FlagDelay, "delay", "d", 0, "Delay between requests in milliseconds. (default 0)")
+	grawlCmd.Flags().IntVarP(&flags.FlagMaxDepth, "max-depth", "m", 0, "Set it to 0 for infinite recursion. (default 0)")
+	grawlCmd.Flags().StringVarP(&flags.FlagOutputFilename, "output-filepath", "o", "", "Write statistic data of each request to this file.")
+	grawlCmd.Flags().IntVarP(&flags.FlagParallel, "parallel", "l", 1, "Number of parallel requests.")
+	grawlCmd.Flags().StringVarP(&flags.FlagUsername, "username", "u", "", "Use this for HTTP Basic Authentication. If you omit the password-flag a prompt will ask for the password.")
+	grawlCmd.Flags().StringVarP(&flags.FlagPassword, "password", "p", "", "Use this for HTTP Basic Authentication.")
+	grawlCmd.Flags().StringVar(&flags.FlagUserAgent, "user-agent", "grawler", "Sets the user agent.")
+	grawlCmd.Flags().BoolVarP(&flags.FlagSitemap, "sitemap", "s", false, "Checks the sitemap. If this is flag is set the url parameter has to be the url to the sitemap.xml.")
+	grawlCmd.Flags().StringSliceVarP(&flags.FlagAllowedDomains, "allowed-domains", "a", nil, "A comma separated list of allowed domains to be crawled. The domain of the given url is always allowed.")
+	grawlCmd.Flags().BoolVar(&flags.FlagRespectRobotsTxt, "respect-robots-txt", false, "Respect the robots.txt file.")
+	grawlCmd.Flags().StringVar(&flags.FlagPath, "path", "", "Restrict the crawlings on a certain url path.")
 }
 
 func warmItUp(url string) {
-	grawler := grawl.NewGrawler()
-	grawler.FlagParallel = flagParallel
-	grawler.FlagDelay = flagDelay
-	grawler.FlagMaxDepth = flagMaxDepth
-	grawler.FlagOutputFilename = flagOutputFilename
-	grawler.FlagUsername = flagUsername
-	grawler.FlagPassword = flagPassword
-	grawler.FlagUserAgent = flagUserAgent
-	grawler.FlagSitemap = flagSitemap
-	grawler.FlagAllowedDomains = flagAllowedDomains
-	grawler.FlagRespectRobotsTxt = flagRespectRobotsTxt
-
+	grawler := grawl.NewGrawler(flags)
 	grawler.Grawl(url)
 }

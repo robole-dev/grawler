@@ -9,6 +9,7 @@ import (
 	"github.com/manifoldco/promptui"
 	url2 "net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -20,19 +21,8 @@ const (
 )
 
 type Grawler struct {
-	FlagParallel         int
-	FlagDelay            int64
-	FlagMaxDepth         int
-	FlagOutputFilename   string
-	FlagUsername         string
-	FlagPassword         string
-	FlagUserAgent        string
-	FlagSitemap          bool
-	FlagAllowedDomains   []string
-	FlagRespectRobotsTxt bool
-
-	headerAuth string
-
+	flags           Flags
+	headerAuth      string
 	requestCount    uint32
 	responseCount   int
 	errorCount      uint32
@@ -40,19 +30,9 @@ type Grawler struct {
 	runningRequests *RunningRequests
 }
 
-func NewGrawler() *Grawler {
+func NewGrawler(flags Flags) *Grawler {
 	return &Grawler{
-
-		//FlagParallel       :int,
-		//FlagDelay          :int64,
-		FlagMaxDepth: 0,
-		//FlagOutputFilename :string,
-		//FlagUsername       :string,
-		//FlagPassword       :string,
-		//FlagUserAgent      :string,
-		//FlagSitemap        :bool,
-		FlagUserAgent: "grawler",
-
+		flags:           flags,
 		requestCount:    0,
 		responseCount:   0,
 		errorCount:      0,
@@ -65,47 +45,61 @@ func (g *Grawler) Grawl(url string) {
 
 	fmt.Println("Grawling " + url)
 
-	c := colly.NewCollector()
-	c.MaxDepth = g.FlagMaxDepth
-
-	if g.FlagUserAgent != "" {
-		c.UserAgent = g.FlagUserAgent
-	}
-
-	err := c.Limit(&colly.LimitRule{
-		DomainGlob:  "*",
-		Parallelism: g.FlagParallel,
-		Delay:       time.Duration(g.FlagDelay) * time.Millisecond,
-	})
-	if err != nil {
-		fmt.Println("Error setting limits:", err)
-		return
-	}
-
 	parsedUrl, err := url2.Parse(url)
 	if err != nil {
 		fmt.Println("Error parsing the url:", err)
 		return
 	}
 
-	c.IgnoreRobotsTxt = !g.FlagRespectRobotsTxt
-	c.AllowURLRevisit = false
-	c.AllowedDomains = []string{
-		parsedUrl.Host,
+	c := colly.NewCollector()
+	c.MaxDepth = g.flags.FlagMaxDepth
+
+	if g.flags.FlagPath != "" {
+		regexPatternPath := fmt.Sprintf(
+			`^https?://%s%s.*$`,
+			regexp.QuoteMeta(parsedUrl.Host),
+			regexp.QuoteMeta(g.flags.FlagPath),
+		)
+		regexPath := regexp.MustCompile(regexPatternPath)
+		c.URLFilters = append(c.URLFilters, regexPath)
+
+		regexPatternUrl := fmt.Sprintf(
+			`^%s$`,
+			regexp.QuoteMeta(url),
+		)
+		regexUrl := regexp.MustCompile(regexPatternUrl)
+		c.URLFilters = append(c.URLFilters, regexUrl)
 	}
 
-	c.AllowedDomains = slices.Concat(c.AllowedDomains, g.FlagAllowedDomains)
+	if g.flags.FlagUserAgent != "" {
+		c.UserAgent = g.flags.FlagUserAgent
+	}
 
-	if g.FlagUsername != "" {
-		if g.FlagPassword == "" {
-			g.FlagPassword, err = g.promptPassword()
+	err = c.Limit(&colly.LimitRule{
+		DomainGlob:  "*",
+		Parallelism: g.flags.FlagParallel,
+		Delay:       time.Duration(g.flags.FlagDelay) * time.Millisecond,
+	})
+	if err != nil {
+		fmt.Println("Error setting limits:", err)
+		return
+	}
+
+	c.IgnoreRobotsTxt = !g.flags.FlagRespectRobotsTxt
+	c.AllowURLRevisit = false
+	c.AllowedDomains = slices.Concat(c.AllowedDomains, g.flags.FlagAllowedDomains)
+	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Host)
+
+	if g.flags.FlagUsername != "" {
+		if g.flags.FlagPassword == "" {
+			g.flags.FlagPassword, err = g.promptPassword()
 			if err != nil {
 				fmt.Println("error reading password:", err)
 				return
 			}
 		}
 
-		var auth = base64.StdEncoding.EncodeToString([]byte(g.FlagUsername + ":" + g.FlagPassword))
+		var auth = base64.StdEncoding.EncodeToString([]byte(g.flags.FlagUsername + ":" + g.flags.FlagPassword))
 		g.headerAuth = fmt.Sprintf("Basic %s", auth)
 	}
 
@@ -167,7 +161,7 @@ func (g *Grawler) Grawl(url string) {
 		}
 	})
 
-	if g.FlagSitemap {
+	if g.flags.FlagSitemap {
 		c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
 			g.visit(c, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
 		})
@@ -193,7 +187,7 @@ func (g *Grawler) Grawl(url string) {
 		return
 	}
 
-	if len(g.FlagOutputFilename) > 0 {
+	if g.flags.FlagOutputFilename != "" {
 		g.saveResultFile(g.runningRequests)
 	}
 
@@ -220,11 +214,11 @@ func (g *Grawler) printSummary() {
 }
 
 func (g *Grawler) saveResultFile(runningRequests *RunningRequests) {
-	fmt.Printf("Saving file \"%s\".\n", g.FlagOutputFilename)
+	fmt.Printf("Saving file \"%s\".\n", g.flags.FlagOutputFilename)
 
 	results := runningRequests.GetValues()
 
-	file, err := os.Create(g.FlagOutputFilename)
+	file, err := os.Create(g.flags.FlagOutputFilename)
 	if err != nil {
 		panic(err)
 	}
