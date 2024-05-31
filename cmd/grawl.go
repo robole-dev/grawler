@@ -28,7 +28,9 @@ var (
 	flagUsername       string
 	flagPassword       string
 	flagUserAgent      string
-	headerAuth         string
+	flagSitemap        bool
+
+	headerAuth string
 
 	emptyFlagValue string = string(rune(0))
 
@@ -52,7 +54,8 @@ func init() {
 	grawlCmd.Flags().IntVarP(&flagParallel, "parallel", "l", 1, "Number of parallel requests.")
 	grawlCmd.Flags().StringVarP(&flagUsername, "username", "u", "", "Use this for HTTP Basic Authentication. If you omit the password-flag a prompt will ask for the password.")
 	grawlCmd.Flags().StringVarP(&flagPassword, "password", "p", "", "Use this for HTTP Basic Authentication.")
-	grawlCmd.Flags().StringVar(&flagUserAgent, "useragent", "", "Sets the user agent.")
+	grawlCmd.Flags().StringVar(&flagUserAgent, "user-agent", "", "Sets the user agent.")
+	grawlCmd.Flags().BoolVarP(&flagSitemap, "sitemap", "s", false, "Checks the sitemap. If this is flag is set the url parameter has to be the url to the sitemap.xml.")
 }
 
 func warmItUp(url string) {
@@ -151,15 +154,20 @@ func warmItUp(url string) {
 		}
 	})
 
-	//c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-	//	link := e.Attr("href")
-	//	_ = c.Visit(e.Request.AbsoluteURL(link))
-	//})
-
-	c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
-		link := e.Text
-		_ = c.Visit(e.Request.AbsoluteURL(link))
-	})
+	if flagSitemap {
+		fmt.Println("Look for sitemap")
+		c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
+			_ = c.Visit(e.Request.AbsoluteURL(e.Text))
+		})
+		c.OnXML("//sitemapindex/sitemap/loc", func(e *colly.XMLElement) {
+			_ = c.Visit(e.Request.AbsoluteURL(e.Text))
+		})
+	} else {
+		c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+			link := e.Attr("href")
+			_ = c.Visit(e.Request.AbsoluteURL(link))
+		})
+	}
 
 	err = c.Visit(url)
 	if err != nil {
@@ -174,9 +182,9 @@ func warmItUp(url string) {
 	runningRequests = nil
 
 	fmt.Println("")
-	fmt.Println("Grawling finished at:    ", time.Now())
-	fmt.Println("Total request num:       ", requestCount)
-	fmt.Println("Total request duration:  ", totalDuration.Round(time.Millisecond))
+	fmt.Println("Grawling finished at:    ", time.Now().Format(request.DateFormat))
+	fmt.Println("Requests:                ", requestCount)
+	fmt.Println("Duration:                ", totalDuration.Round(time.Millisecond))
 	fmt.Println("Average request duration:", time.Duration(int64(totalDuration)/int64(requestCount)).Round(time.Millisecond))
 	fmt.Println("Total response num:      ", responseCount)
 	fmt.Println("Total error/skipped num: ", errorCount)
