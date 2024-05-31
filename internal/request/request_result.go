@@ -83,12 +83,6 @@ func (r *Result) IsRedirected() bool {
 
 func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration time.Duration, err *error) {
 
-	binary, err2 := response.Ctx.MarshalBinary()
-	if err2 != nil {
-		return
-	}
-
-	fmt.Println("header", binary)
 	if r.Url != response.Request.URL.String() {
 		r.UrlRedirectedFrom = r.Url
 		r.Url = response.Request.URL.String()

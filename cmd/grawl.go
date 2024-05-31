@@ -27,6 +27,7 @@ var (
 	flagOutputFilename string
 	flagUsername       string
 	flagPassword       string
+	flagUserAgent      string
 	headerAuth         string
 
 	emptyFlagValue string = string(rune(0))
@@ -51,11 +52,7 @@ func init() {
 	grawlCmd.Flags().IntVarP(&flagParallel, "parallel", "l", 1, "Number of parallel requests.")
 	grawlCmd.Flags().StringVarP(&flagUsername, "username", "u", "", "Use this for HTTP Basic Authentication. If you omit the password-flag a prompt will ask for the password.")
 	grawlCmd.Flags().StringVarP(&flagPassword, "password", "p", "", "Use this for HTTP Basic Authentication.")
-	grawlCmd.Flags().Lookup("password").NoOptDefVal = emptyFlagValue
-	//grawlCmd.Flags().Lookup("password").DefValue = ""
-
-	//BindPFlags(grawlCmd.Flags())
-	//BindPFlags("port", grawlCmd.Flags().Lookup("port"))
+	grawlCmd.Flags().StringVar(&flagUserAgent, "useragent", "", "Sets the user agent.")
 }
 
 func warmItUp(url string) {
@@ -74,6 +71,10 @@ func warmItUp(url string) {
 
 	c := colly.NewCollector()
 	c.MaxDepth = flagMaxDepth
+
+	if flagUserAgent != "" {
+		c.UserAgent = flagUserAgent
+	}
 
 	err := c.Limit(&colly.LimitRule{
 		DomainGlob:  "*",
@@ -150,8 +151,13 @@ func warmItUp(url string) {
 		}
 	})
 
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		link := e.Attr("href")
+	//c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	//	link := e.Attr("href")
+	//	_ = c.Visit(e.Request.AbsoluteURL(link))
+	//})
+
+	c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
+		link := e.Text
 		_ = c.Visit(e.Request.AbsoluteURL(link))
 	})
 
