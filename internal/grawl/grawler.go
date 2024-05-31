@@ -20,15 +20,16 @@ const (
 )
 
 type Grawler struct {
-	FlagParallel       int
-	FlagDelay          int64
-	FlagMaxDepth       int
-	FlagOutputFilename string
-	FlagUsername       string
-	FlagPassword       string
-	FlagUserAgent      string
-	FlagSitemap        bool
-	FlagAllowedDomains []string
+	FlagParallel         int
+	FlagDelay            int64
+	FlagMaxDepth         int
+	FlagOutputFilename   string
+	FlagUsername         string
+	FlagPassword         string
+	FlagUserAgent        string
+	FlagSitemap          bool
+	FlagAllowedDomains   []string
+	FlagRespectRobotsTxt bool
 
 	headerAuth string
 
@@ -50,6 +51,7 @@ func NewGrawler() *Grawler {
 		//FlagPassword       :string,
 		//FlagUserAgent      :string,
 		//FlagSitemap        :bool,
+		FlagUserAgent: "grawler",
 
 		requestCount:    0,
 		responseCount:   0,
@@ -86,6 +88,7 @@ func (g *Grawler) Grawl(url string) {
 		return
 	}
 
+	c.IgnoreRobotsTxt = !g.FlagRespectRobotsTxt
 	c.AllowURLRevisit = false
 	c.AllowedDomains = []string{
 		parsedUrl.Host,

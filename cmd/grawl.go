@@ -6,15 +6,16 @@ import (
 )
 
 var (
-	flagParallel       int
-	flagDelay          int64
-	flagMaxDepth       int
-	flagOutputFilename string
-	flagUsername       string
-	flagPassword       string
-	flagUserAgent      string
-	flagSitemap        bool
-	flagAllowedDomains []string
+	flagParallel         int
+	flagDelay            int64
+	flagMaxDepth         int
+	flagOutputFilename   string
+	flagUsername         string
+	flagPassword         string
+	flagUserAgent        string
+	flagSitemap          bool
+	flagAllowedDomains   []string
+	flagRespectRobotsTxt bool
 
 	grawlCmd = &cobra.Command{
 		Use:     "grawl",
@@ -39,6 +40,7 @@ func init() {
 	grawlCmd.Flags().StringVar(&flagUserAgent, "user-agent", "", "Sets the user agent.")
 	grawlCmd.Flags().BoolVarP(&flagSitemap, "sitemap", "s", false, "Checks the sitemap. If this is flag is set the url parameter has to be the url to the sitemap.xml.")
 	grawlCmd.Flags().StringSliceVarP(&flagAllowedDomains, "allowed-domains", "a", nil, "A comma separated list of allowed domains to be crawled. The domain of the given url is always allowed.")
+	grawlCmd.Flags().BoolVar(&flagRespectRobotsTxt, "respect-robots-txt", false, "Respect the robots.txt file.")
 }
 
 func warmItUp(url string) {
@@ -52,6 +54,7 @@ func warmItUp(url string) {
 	grawler.FlagUserAgent = flagUserAgent
 	grawler.FlagSitemap = flagSitemap
 	grawler.FlagAllowedDomains = flagAllowedDomains
+	grawler.FlagRespectRobotsTxt = flagRespectRobotsTxt
 
 	grawler.Grawl(url)
 }
