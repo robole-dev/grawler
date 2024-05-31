@@ -1,43 +1,52 @@
-name: Build and Release
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
 
 on:
     push:
+        branches:
+            - "main"
         tags:
             - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
     build:
         runs-on: ubuntu-latest
-
         steps:
-            - name: Check out the repository
-              uses: actions/checkout@v2
+            -   name: Check out the repository
+                uses: actions/checkout@v4
 
-            - name: Set up Go
-              uses: actions/setup-go@v2
-              with:
-                  go-version: '1.22.3'
+            -   name: Set up Go
+                uses: actions/setup-go@v4
+                with:
+                    go-version: '1.22.x'
 
-            - name: Build
-              run: |
-                  mkdir -p dist
-                  CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/grawler
+            -   name: Install dependencies
+                run: |
+                    go mod vendor
+                    go mod tidy
 
-            - name: Create Release
-              id: create_release
-              uses: actions/create-release@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  tag_name: ${{ github.ref }}
-                  release_name: Release ${{ github.ref }}
-                  draft: false
-                  prerelease: false
+            -   name: Build
+                run: |
+                    mkdir -p dist
+                    CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/grawler
 
-            - name: Upload Release Asset
-              uses: actions/upload-release-asset@v1
-              with:
-                  upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: dist/grawler
-                  asset_name: grawler
-                  asset_content_type: application/octet-stream
+            -   name: Create Release
+                id: create_release
+                uses: actions/create-release@v1
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                with:
+                    tag_name: ${{ github.ref }}
+                    release_name: Release ${{ github.ref }}
+                    draft: false
+                    prerelease: false
+
+            -   name: Upload Release Asset
+                uses: actions/upload-release-asset@v1
+                with:
+                    upload_url: ${{ steps.create_release.outputs.upload_url }}
+                    asset_path: dist/grawler
+                    asset_name: grawler
+                    asset_content_type: application/octet-stream
