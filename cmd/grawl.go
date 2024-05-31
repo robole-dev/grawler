@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	url2 "net/url"
 	"os"
-	"sort"
 	"time"
 )
 
@@ -85,13 +84,13 @@ func warmItUp(url string) {
 		Delay:       time.Duration(flagDelay) * time.Millisecond,
 	})
 	if err != nil {
-		fmt.Println("Error setting limits:", err)
+		fmt.Println("error setting limits:", err)
 		return
 	}
 
 	parsedUrl, err := url2.Parse(url)
 	if err != nil {
-		fmt.Println("Error parsing the url:", err)
+		fmt.Println("error parsing the url:", err)
 		return
 	}
 
@@ -104,7 +103,7 @@ func warmItUp(url string) {
 		if flagPassword == "" {
 			flagPassword, err = promptPassword()
 			if err != nil {
-				fmt.Println("Error reading password:", err)
+				fmt.Println("error reading password:", err)
 				return
 			}
 		}
@@ -118,12 +117,13 @@ func warmItUp(url string) {
 			r.Headers.Set("Authorization", headerAuth)
 		}
 
-		requestResult := request.NewResult()
-		requestResult.RequestAt = time.Now()
-		requestResult.Url = r.URL.String()
+		requestResult := request.NewResult(r.ID, r.URL.String())
 
-		runningRequests.Store(r.ID, requestResult)
+		runningRequests.Store(r.ID, requestResult, r.URL.String())
 		requestCount++
+
+		r.Ctx.Put("orgUrl", r.URL.String())
+
 		//fmt.Printf("%d - Visiting: %s\n", requestCount, r.URL)
 		//fmt.Println("Visiting", r.URL)
 	})
@@ -132,7 +132,7 @@ func warmItUp(url string) {
 		responseCount++
 
 		if reqResult, ok := runningRequests.Load(r.Request.ID); ok {
-			duration := time.Since(reqResult.RequestAt)
+			duration := time.Since(reqResult.GetRequestAt())
 			totalDuration += duration
 			reqResult.UpdateOnResponse(r, responseCount, duration, nil)
 			printResult(reqResult)
@@ -145,10 +145,10 @@ func warmItUp(url string) {
 		errorCount++
 
 		if reqResult, ok := runningRequests.Load(r.Request.ID); ok {
-			duration := time.Since(reqResult.RequestAt)
+			duration := time.Since(reqResult.GetRequestAt())
 			totalDuration += duration
 			reqResult.UpdateOnResponse(r, responseCount, duration, &err)
-			//fmt.Println("Error:", err)
+			//fmt.Println("error:", err)
 		} else {
 			fmt.Printf("Could not find request: %s\n", r.Request.URL)
 		}
@@ -176,27 +176,22 @@ func warmItUp(url string) {
 	}
 
 	if len(flagOutputFilename) > 0 {
-		saveResult(runningRequests.GetValues())
+		saveResult(runningRequests)
 	}
-
-	runningRequests = nil
 
 	fmt.Println("")
 	fmt.Println("Grawling finished at:    ", time.Now().Format(request.DateFormat))
 	fmt.Println("Requests:                ", requestCount)
-	fmt.Println("Duration:                ", totalDuration.Round(time.Millisecond))
+	fmt.Println("duration:                ", totalDuration.Round(time.Millisecond))
 	fmt.Println("Average request duration:", time.Duration(int64(totalDuration)/int64(requestCount)).Round(time.Millisecond))
 	fmt.Println("Total response num:      ", responseCount)
 	fmt.Println("Total error/skipped num: ", errorCount)
 }
 
-func saveResult(results *[]*request.Result) {
+func saveResult(runningRequests *request.RunningRequests) {
 	fmt.Printf("Saving file \"%s\".\n", flagOutputFilename)
 
-	// Sort by URL
-	sort.Slice(*results, func(i, j int) bool {
-		return (*results)[i].Url < (*results)[j].Url
-	})
+	results := runningRequests.GetValues()
 
 	file, err := os.Create(flagOutputFilename)
 	if err != nil {
@@ -250,7 +245,7 @@ func promptPassword() (string, error) {
 func printResult(result *request.Result) {
 	if result.IsRedirected() {
 		color.Yellow(result.GetPrintRow())
-	} else if result.Error != nil {
+	} else if result.HasError() {
 		color.Red(result.GetPrintRow())
 	} else {
 		color.Green(result.GetPrintRow())

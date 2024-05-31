@@ -1,6 +1,7 @@
 package request
 
 import (
+	"sort"
 	"sync"
 )
 
@@ -9,11 +10,13 @@ import (
 type RunningRequests struct {
 	sync.RWMutex
 	results map[uint32]*Result
+	idByUrl map[string]uint32
 }
 
 func NewRunningRequests() *RunningRequests {
 	return &RunningRequests{
 		results: make(map[uint32]*Result),
+		idByUrl: make(map[string]uint32),
 	}
 }
 
@@ -24,6 +27,11 @@ func (rm *RunningRequests) GetValues() *[]*Result {
 	for _, value := range rm.results {
 		values = append(values, value)
 	}
+
+	sort.Slice(values, func(i, j int) bool {
+		return (values)[i].url < (values)[j].url
+	})
+
 	return &values
 }
 
@@ -34,15 +42,31 @@ func (rm *RunningRequests) Load(key uint32) (value *Result, ok bool) {
 	return result, ok
 }
 
+func (rm *RunningRequests) LoadByUrl(url string) (value *Result, ok bool) {
+	rm.RLock()
+	var result *Result = nil
+	id, ok := rm.idByUrl[url]
+	if ok {
+		result, ok = rm.results[id]
+	}
+	rm.RUnlock()
+	return result, ok
+}
+
 func (rm *RunningRequests) Delete(key uint32) {
 	rm.Lock()
+	value, ok := rm.Load(key)
+	if ok && value.url != "" {
+		delete(rm.idByUrl, value.url)
+	}
 	delete(rm.results, key)
 	rm.Unlock()
 }
 
-func (rm *RunningRequests) Store(key uint32, value *Result) *Result {
+func (rm *RunningRequests) Store(key uint32, value *Result, url string) *Result {
 	rm.Lock()
 	rm.results[key] = value
+	rm.idByUrl[url] = key
 	rm.Unlock()
 	return value
 }

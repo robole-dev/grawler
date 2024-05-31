@@ -13,18 +13,20 @@ const (
 )
 
 type Result struct {
+	id                uint32
 	Index             int
-	Url               string
-	UrlHost           string
-	UrlPath           string
-	UrlParmeters      string
-	UrlFragment       string
-	UrlRedirectedFrom string
-	Duration          time.Duration
-	RequestAt         time.Time
-	ResponseAt        time.Time
-	StatusCode        int
-	Error             error
+	orgUrl            string
+	url               string
+	urlHost           string
+	urlPath           string
+	urlParmeters      string
+	urlFragment       string
+	urlRedirectedFrom string
+	duration          time.Duration
+	requestAt         time.Time
+	responseAt        time.Time
+	statusCode        int
+	error             error
 	status            string
 	statusShort       string
 }
@@ -38,39 +40,48 @@ func GetCsvHeader() []string {
 		"Path",
 		"Parameters",
 		"Fragment",
-		"Duration (ms)",
+		"duration (ms)",
 		"Status code",
 		"Redirected from",
 		//"Request at",
 		"Response time",
-		"Info / Error",
+		"Info / error",
 	}
 }
 
-func NewResult() *Result {
-	return &Result{}
+func NewResult(id uint32, url string) *Result {
+	return &Result{
+		id:        id,
+		orgUrl:    url,
+		url:       url,
+		requestAt: time.Now(),
+	}
+}
+
+func (r *Result) GetRequestAt() time.Time {
+	return r.requestAt
 }
 
 func (r *Result) GetCsvRow() []string {
 
 	errorText := ""
-	if r.Error != nil {
-		errorText = fmt.Sprintf("%v", r.Error)
+	if r.error != nil {
+		errorText = fmt.Sprintf("%v", r.error)
 	}
 
 	record := []string{
 		//strconv.Itoa(r.index),
-		r.Url,
+		r.url,
 		r.status,
-		r.UrlHost,
-		r.UrlPath,
-		r.UrlParmeters,
-		r.UrlFragment,
-		strconv.FormatInt(r.Duration.Milliseconds(), 10),
-		strconv.Itoa(r.StatusCode),
-		r.UrlRedirectedFrom,
-		//r.RequestAt.String(),
-		r.ResponseAt.String(),
+		r.urlHost,
+		r.urlPath,
+		r.urlParmeters,
+		r.urlFragment,
+		strconv.FormatInt(r.duration.Milliseconds(), 10),
+		strconv.Itoa(r.statusCode),
+		r.urlRedirectedFrom,
+		//r.requestAt.String(),
+		r.responseAt.String(),
 		errorText,
 	}
 
@@ -78,53 +89,59 @@ func (r *Result) GetCsvRow() []string {
 }
 
 func (r *Result) IsRedirected() bool {
-	return r.UrlRedirectedFrom != ""
+	return r.urlRedirectedFrom != ""
 }
 
 func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration time.Duration, err *error) {
 
-	if r.Url != response.Request.URL.String() {
-		r.UrlRedirectedFrom = r.Url
-		r.Url = response.Request.URL.String()
+	orgUrl := response.Request.Ctx.Get("orgUrl")
+
+	if orgUrl != response.Request.URL.String() {
+		r.urlRedirectedFrom = orgUrl
+		r.url = response.Request.URL.String()
 	}
 
-	r.status = http.StatusText(r.StatusCode)
-	r.statusShort = StatusAbbreviation(r.StatusCode)
+	r.status = http.StatusText(r.statusCode)
+	r.statusShort = StatusAbbreviation(r.statusCode)
 
-	if r.Error != nil && r.StatusCode == 0 {
+	if r.error != nil && r.statusCode == 0 {
 		r.status = "Skipped"
-	} else if r.UrlRedirectedFrom != "" {
+	} else if r.urlRedirectedFrom != "" {
 		r.status = "Redirect"
 	}
 
-	r.Duration = duration
+	r.duration = duration
 	r.Index = index
-	r.UrlPath = response.Request.URL.Path
-	r.UrlHost = response.Request.URL.Host
-	r.UrlParmeters = response.Request.URL.RawQuery
-	r.UrlFragment = response.Request.URL.RawFragment
-	r.StatusCode = response.StatusCode
-	r.ResponseAt = time.Now()
+	r.urlPath = response.Request.URL.Path
+	r.urlHost = response.Request.URL.Host
+	r.urlParmeters = response.Request.URL.RawQuery
+	r.urlFragment = response.Request.URL.RawFragment
+	r.statusCode = response.StatusCode
+	r.responseAt = time.Now()
 
 	if err != nil {
-		r.Error = *err
+		r.error = *err
 	}
 }
 
 func (r *Result) GetPrintRow() string {
 	row := ""
-	row += "[" + r.ResponseAt.Format(DateFormat) + "]"
+	row += "[" + r.responseAt.Format(DateFormat) + "]"
 	row += " "
-	row += strconv.Itoa(r.StatusCode)
+	row += strconv.Itoa(r.statusCode)
 	row += " "
-	row += StatusAbbreviation(r.StatusCode)
+	row += StatusAbbreviation(r.statusCode)
 	row += " - "
-	row += r.Url
+	row += r.url
 
 	if r.IsRedirected() {
-		row += " - Redirected from: " + r.UrlRedirectedFrom
+		row += " - Redirected from: " + r.urlRedirectedFrom
 	}
 
 	return row
 
+}
+
+func (r *Result) HasError() bool {
+	return r.error != nil
 }
