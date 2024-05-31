@@ -9,6 +9,7 @@ import (
 	"github.com/manifoldco/promptui"
 	url2 "net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -170,8 +171,11 @@ func (g *Grawler) Grawl(url string) {
 	} else {
 		c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 			link := e.Attr("href")
+			strings.Trim(link, " ")
 
-			// @TODO Filter "mailto"
+			if strings.HasPrefix(link, "mailto:") {
+				return
+			}
 
 			g.visit(c, e.Request.AbsoluteURL(link), e.Request.URL.String())
 		})
