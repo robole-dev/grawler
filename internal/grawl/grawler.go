@@ -131,7 +131,6 @@ func (g *Grawler) Grawl(url string) {
 			g.totalDuration += duration
 
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
-
 			g.printResult(reqResult)
 		} else {
 			fmt.Printf("No start time found for %s\n", r.Request.URL)
@@ -141,10 +140,19 @@ func (g *Grawler) Grawl(url string) {
 	c.OnError(func(r *colly.Response, err error) {
 		g.errorCount++
 
+		//
+		// Remove request if this url is filtered by colly
+		//
+		if r.StatusCode == 0 {
+			g.runningRequests.Delete(r.Request.ID)
+			return
+		}
+
 		if reqResult, ok := g.runningRequests.Load(r.Request.ID); ok {
 			duration := time.Since(reqResult.GetRequestAt())
 			g.totalDuration += duration
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
+			g.printResult(reqResult)
 			//fmt.Println("error:", err)
 		} else {
 			fmt.Printf("Could not find request: %s\n", r.Request.URL)

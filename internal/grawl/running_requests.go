@@ -58,7 +58,7 @@ func (rr *RunningRequests) LoadByUrl(url string) (value *Result, ok bool) {
 
 func (rr *RunningRequests) Delete(key uint32) {
 	rr.Lock()
-	value, ok := rr.Load(key)
+	value, ok := rr.results[key]
 	if ok && value.url != "" {
 		delete(rr.idByUrl, value.url)
 	}

@@ -28,25 +28,6 @@ type Result struct {
 	foundOnUrl        string
 }
 
-func GetCsvHeader() []string {
-	return []string{
-		//"#",
-		"URL",
-		"Status",
-		"Host",
-		"Path",
-		"Parameters",
-		"Fragment",
-		"Duration (ms)",
-		"Status code",
-		"Found on URL",
-		"Redirected from",
-		//"Request at",
-		"Response time",
-		"Info / error",
-	}
-}
-
 func NewResult(id uint32, url string, foundOnUrl string) *Result {
 	//fmt.Println("found on", foundOnUrl)
 	return &Result{
@@ -62,33 +43,6 @@ func (r *Result) GetRequestAt() time.Time {
 	return r.requestAt
 }
 
-func (r *Result) GetCsvRow() []string {
-
-	errorText := ""
-	if r.error != nil {
-		errorText = fmt.Sprintf("%v", r.error)
-	}
-
-	record := []string{
-		//strconv.Itoa(r.index),
-		r.url,
-		r.status,
-		r.urlHost,
-		r.urlPath,
-		r.urlParmeters,
-		r.urlFragment,
-		strconv.FormatInt(r.duration.Milliseconds(), 10),
-		strconv.Itoa(r.statusCode),
-		r.foundOnUrl,
-		r.urlRedirectedFrom,
-		//r.requestAt.String(),
-		r.responseAt.Format(DateFormat),
-		errorText,
-	}
-
-	return record
-}
-
 func (r *Result) IsRedirected() bool {
 	return r.urlRedirectedFrom != ""
 }
@@ -102,13 +56,13 @@ func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration 
 		r.url = response.Request.URL.String()
 	}
 
-	r.status = http.StatusText(r.statusCode)
-	r.statusShort = StatusAbbreviation(r.statusCode)
+	r.status = http.StatusText(response.StatusCode)
+	r.statusShort = StatusAbbreviation(response.StatusCode)
 
-	if r.error != nil && r.statusCode == 0 {
+	if err != nil && response.StatusCode == 0 {
 		r.status = "Skipped"
 	} else if r.urlRedirectedFrom != "" {
-		r.status = "Redirect"
+		r.status += " (Redirected)"
 	}
 
 	r.duration = duration
@@ -143,6 +97,54 @@ func (r *Result) GetPrintRow() string {
 
 }
 
+func GetCsvHeader() []string {
+	return []string{
+		"Response time",
+		"Status code",
+		"Status",
+		"URL",
+
+		"Found on URL",
+		"Duration (ms)",
+		"Redirected from",
+
+		"Host",
+		"Path",
+		"Parameters",
+		"Fragment",
+
+		"Info / error",
+	}
+}
+
+func (r *Result) GetCsvRow() []string {
+
+	errorText := ""
+	if r.error != nil {
+		errorText = fmt.Sprintf("%v", r.error)
+	}
+
+	record := []string{
+		r.responseAt.Format(DateFormat),
+		strconv.Itoa(r.statusCode),
+		r.status,
+		r.url,
+
+		r.foundOnUrl,
+		strconv.FormatInt(r.duration.Milliseconds(), 10),
+		r.urlRedirectedFrom,
+
+		r.urlHost,
+		r.urlPath,
+		r.urlParmeters,
+		r.urlFragment,
+
+		errorText,
+	}
+
+	return record
+}
+
 func (r *Result) HasError() bool {
-	return r.error != nil
+	return r.error != nil || r.statusCode >= 400
 }
