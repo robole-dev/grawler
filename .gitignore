@@ -26,3 +26,5 @@ vendor
 /*.csv
 /grawler
 /dist
+
+dist/
