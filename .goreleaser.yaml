@@ -14,7 +14,8 @@ before:
         - go generate ./...
 
 builds:
-    -   env:
+    -   id: binary
+        env:
             - CGO_ENABLED=0
         goos:
             - linux
@@ -25,10 +26,13 @@ builds:
             - arm
             - arm64
 #            - 386
-
+        ldflags:
+            - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
 
 archives:
-    -   format: tar.gz
+    -   builds:
+            - binary
+        format: tar.gz
         # this name template makes the OS and Arch compatible with the results of `uname`.
 #        name_template: >-
 #            {{ .ProjectName }}_
