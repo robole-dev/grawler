@@ -1,35 +1,35 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-#name: Build and publish
-#
-#on:
-#    push:
-#        tags:
-#            - 'v[0-9]+.[0-9]+.[0-9]+'
-#
-#jobs:
-#    build:
-#        runs-on: ubuntu-latest
-#        steps:
-#            -   name: Check out the repository
-#                uses: actions/checkout@v4
-#
-#            -   name: Set up Go
-#                uses: actions/setup-go@v4
-#                with:
-#                    go-version: '1.22.x'
-#
+name: Build and publish
+
+on:
+    push:
+        tags:
+            - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Check out the repository
+                uses: actions/checkout@v4
+
+            -   name: Set up Go
+                uses: actions/setup-go@v4
+                with:
+                    go-version: '1.22.x'
+
 #            -   name: Install dependencies
 #                run: |
 #                    go mod vendor
 #                    go mod tidy
-#
+
 #            -   name: Build
 #                run: |
 #                    mkdir -p dist
 #                    CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/grawler
-#
+
 #            -   name: Create Release
 #                id: create_release
 #                uses: actions/create-release@v1
@@ -50,3 +50,17 @@
 #                    asset_path: dist/grawler
 #                    asset_name: grawler
 #                    asset_content_type: application/octet-stream
+
+            -
+                name: Run GoReleaser
+                uses: goreleaser/goreleaser-action@v5
+                with:
+                    # either 'goreleaser' (default) or 'goreleaser-pro'
+                    distribution: goreleaser
+                    # 'latest', 'nightly', or a semver
+                    version: '~> v1'
+                    args: release --clean
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
+                    # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
