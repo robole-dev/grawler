@@ -191,6 +191,11 @@ func (g *Grawler) Grawl(url string) {
 	}
 
 	if g.flags.FlagCheckAll {
+		c.OnHTML("source[srcset]", func(e *colly.HTMLElement) {
+			imgSrc := e.Attr("srcset")
+			g.visit(c, e.Request, e.Request.AbsoluteURL(imgSrc), e.Request.URL.String())
+		})
+
 		c.OnHTML("img[src]", func(e *colly.HTMLElement) {
 			imgSrc := e.Attr("src")
 			g.visit(c, e.Request, e.Request.AbsoluteURL(imgSrc), e.Request.URL.String())
