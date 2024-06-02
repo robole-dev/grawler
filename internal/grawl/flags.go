@@ -12,4 +12,5 @@ type Flags struct {
 	FlagAllowedDomains   []string
 	FlagRespectRobotsTxt bool
 	FlagPath             string
+	FlagCheckAll         bool
 }

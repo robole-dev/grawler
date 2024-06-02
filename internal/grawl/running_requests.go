@@ -24,7 +24,6 @@ func NewRunningRequests() *RunningRequests {
 
 func (rr *RunningRequests) GetValues() *[]*Result {
 	rr.RLock()
-	defer rr.RUnlock()
 	values := make([]*Result, 0, len(rr.results))
 	for _, value := range rr.results {
 		values = append(values, value)
@@ -35,6 +34,7 @@ func (rr *RunningRequests) GetValues() *[]*Result {
 		return (values)[i].url < (values)[j].url
 	})
 
+	rr.RUnlock()
 	return &values
 }
 

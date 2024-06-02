@@ -26,6 +26,8 @@ type Result struct {
 	status            string
 	statusShort       string
 	foundOnUrl        string
+	contentType       string
+	depth             int
 }
 
 func NewResult(id uint32, url string, foundOnUrl string) *Result {
@@ -73,6 +75,11 @@ func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration 
 	r.urlFragment = response.Request.URL.RawFragment
 	r.statusCode = response.StatusCode
 	r.responseAt = time.Now()
+	r.depth = response.Request.Depth
+
+	//fmt.Println("CT", r.contentType, " - ", response.Headers.Get("Content-Type"))
+
+	r.contentType = response.Headers.Get("Content-Type")
 
 	if err != nil {
 		r.error = *err
@@ -109,7 +116,9 @@ func GetCsvHeader() []string {
 		"URL",
 
 		"Found on URL",
+		"Content type",
 		"Duration (ms)",
+		"Depth",
 		"Redirected from",
 
 		"Host",
@@ -128,14 +137,16 @@ func (r *Result) GetCsvRow() []string {
 		errorText = fmt.Sprintf("%v", r.error)
 	}
 
-	record := []string{
+	return []string{
 		r.responseAt.Format(DateFormat),
 		strconv.Itoa(r.statusCode),
 		r.status,
 		r.url,
 
 		r.foundOnUrl,
+		r.contentType,
 		strconv.FormatInt(r.duration.Milliseconds(), 10),
+		strconv.Itoa(r.depth),
 		r.urlRedirectedFrom,
 
 		r.urlHost,
@@ -145,8 +156,6 @@ func (r *Result) GetCsvRow() []string {
 
 		errorText,
 	}
-
-	return record
 }
 
 func (r *Result) HasError() bool {

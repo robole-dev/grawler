@@ -32,6 +32,7 @@ func init() {
 	grawlCmd.Flags().StringSliceVarP(&flags.FlagAllowedDomains, "allowed-domains", "a", nil, "A comma separated list of allowed domains to be crawled. The domain of the given url is always allowed.")
 	grawlCmd.Flags().BoolVar(&flags.FlagRespectRobotsTxt, "respect-robots-txt", false, "Respect the robots.txt file.")
 	grawlCmd.Flags().StringVar(&flags.FlagPath, "path", "", "Restrict the crawlings on a certain url path.")
+	grawlCmd.Flags().BoolVarP(&flags.FlagCheckAll, "check-all", "", false, "In addtion to html and xml-urls, also check image, js and css-urls, among others.")
 }
 
 func warmItUp(url string) {

@@ -3,6 +3,7 @@ package grawl
 import (
 	"encoding/base64"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/gocolly/colly/v2"
@@ -128,7 +129,8 @@ func (g *Grawler) Grawl(url string) {
 	c.OnResponse(func(r *colly.Response) {
 		g.responseCount++
 
-		if reqResult, ok := g.runningRequests.Load(r.Request.ID); ok {
+		reqResult, ok := g.runningRequests.Load(r.Request.ID)
+		if ok {
 			duration := time.Since(reqResult.GetRequestAt())
 			g.totalDuration += duration
 
@@ -142,42 +144,88 @@ func (g *Grawler) Grawl(url string) {
 	c.OnError(func(r *colly.Response, err error) {
 		g.errorCount++
 
+		// Normal error on aborted binary files like images. Result is printed in OnResponseHeaders
+		if err != nil && errors.Is(err, colly.ErrAbortedAfterHeaders) {
+			return
+		}
+
 		//
 		// Remove request if this url is filtered by colly
 		//
 		if r.StatusCode == 0 {
+			fmt.Println("Error", r.Request.URL, err)
 			g.runningRequests.Delete(r.Request.ID)
 			return
 		}
 
-		if reqResult, ok := g.runningRequests.Load(r.Request.ID); ok {
+		//ErrAbortedAfterHeaders
+
+		reqResult, ok := g.runningRequests.Load(r.Request.ID)
+		if ok {
 			duration := time.Since(reqResult.GetRequestAt())
-			g.totalDuration += duration
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
+			g.totalDuration += duration
 			g.printResult(reqResult)
 			//fmt.Println("error:", err)
 		} else {
-			fmt.Printf("Could not find request: %s\n", r.Request.URL)
+			fmt.Println("Request data not found", r.Request.URL)
 		}
 	})
 
 	if g.flags.FlagSitemap {
 		c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
-			g.visit(c, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
+			g.visit(c, e.Request, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
 		})
 		c.OnXML("//sitemapindex/sitemap/loc", func(e *colly.XMLElement) {
-			g.visit(c, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
+			g.visit(c, e.Request, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
 		})
 	} else {
 		c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 			link := e.Attr("href")
-			strings.Trim(link, " ")
-
 			if strings.HasPrefix(link, "mailto:") {
 				return
 			}
 
-			g.visit(c, e.Request.AbsoluteURL(link), e.Request.URL.String())
+			g.visit(c, e.Request, e.Request.AbsoluteURL(link), e.Request.URL.String())
+		})
+	}
+
+	if g.flags.FlagCheckAll {
+		c.OnHTML("img[src]", func(e *colly.HTMLElement) {
+			imgSrc := e.Attr("src")
+			g.visit(c, e.Request, e.Request.AbsoluteURL(imgSrc), e.Request.URL.String())
+		})
+
+		c.OnHTML("link[rel='stylesheet']", func(e *colly.HTMLElement) {
+			cssHref := e.Attr("href")
+			g.visit(c, e.Request, e.Request.AbsoluteURL(cssHref), e.Request.URL.String())
+		})
+
+		c.OnHTML("script[src]", func(e *colly.HTMLElement) {
+			scriptSrc := e.Attr("src")
+			g.visit(c, e.Request, e.Request.AbsoluteURL(scriptSrc), e.Request.URL.String())
+		})
+
+		c.OnResponseHeaders(func(r *colly.Response) {
+			if isHtmlResponse(r) || isXmlResponse(r) {
+				return
+			}
+
+			//
+			// Abort downloading all non-xml and non-html contents
+			//
+			r.Request.Abort()
+			reqResult, ok := g.runningRequests.Load(r.Request.ID)
+			if ok {
+				duration := time.Since(reqResult.GetRequestAt())
+				g.totalDuration += duration
+
+				reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
+				//fmt.Println(r.Headers.Get("Content-Type"), r.Request.URL, r.Ctx.Get(ctxOrgUrl))
+				g.printResult(reqResult)
+			} else {
+				fmt.Println("Request data not found", r.Request.URL)
+			}
 		})
 	}
 
@@ -188,19 +236,34 @@ func (g *Grawler) Grawl(url string) {
 	}
 
 	if g.flags.FlagOutputFilename != "" {
-		g.saveResultFile(g.runningRequests)
+		g.saveCsvFile(g.runningRequests)
 	}
 
 	g.printSummary()
 }
 
-func (g *Grawler) visit(c *colly.Collector, url string, foundOnUrl string) {
+func isXmlResponse(resp *colly.Response) bool {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
+	isXmlContentType := strings.Contains(contentType, "xml")
+	isHtmlContentType := strings.Contains(contentType, "html")
+
+	return !isHtmlContentType && (isXMLFile || isXmlContentType)
+}
+
+func isHtmlResponse(resp *colly.Response) bool {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	return strings.Contains(contentType, "html")
+}
+
+func (g *Grawler) visit(c *colly.Collector, r *colly.Request, url string, foundOnUrl string) {
+	url = strings.Trim(url, " ")
 	visited, err := c.HasVisited(url)
 	if err != nil || !visited {
 		g.runningRequests.AddFoundUrl(url, foundOnUrl)
 	}
 
-	_ = c.Visit(url)
+	_ = r.Visit(url)
 }
 
 func (g *Grawler) printSummary() {
@@ -213,7 +276,7 @@ func (g *Grawler) printSummary() {
 	fmt.Println("Errors/Skipped:      ", g.errorCount)
 }
 
-func (g *Grawler) saveResultFile(runningRequests *RunningRequests) {
+func (g *Grawler) saveCsvFile(runningRequests *RunningRequests) {
 	fmt.Printf("Saving file \"%s\".\n", g.flags.FlagOutputFilename)
 
 	results := runningRequests.GetValues()
