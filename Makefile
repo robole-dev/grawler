@@ -45,7 +45,7 @@ setup: FORCE
 	go mod vendor
 	go mod tidy
 
-install: FORCE build
+install: FORCE
 	go install .
 
 test: FORCE
