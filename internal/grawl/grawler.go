@@ -54,6 +54,7 @@ func (g *Grawler) Grawl(url string) {
 
 	c := colly.NewCollector()
 	c.MaxDepth = g.flags.FlagMaxDepth
+	c.SetRequestTimeout(time.Duration(g.flags.FlagRequestTimeout * float32(time.Second)))
 
 	if g.flags.FlagPath != "" {
 		regexPatternPath := fmt.Sprintf(

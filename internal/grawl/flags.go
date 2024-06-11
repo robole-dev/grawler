@@ -13,4 +13,5 @@ type Flags struct {
 	FlagRespectRobotsTxt bool
 	FlagPath             string
 	FlagCheckAll         bool
+	FlagRequestTimeout   float32
 }

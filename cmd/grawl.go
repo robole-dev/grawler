@@ -33,6 +33,7 @@ func init() {
 	grawlCmd.Flags().BoolVar(&flags.FlagRespectRobotsTxt, "respect-robots-txt", false, "Respect the robots.txt file.")
 	grawlCmd.Flags().StringVar(&flags.FlagPath, "path", "", "Restrict the crawlings on a certain url path.")
 	grawlCmd.Flags().BoolVarP(&flags.FlagCheckAll, "check-all", "", false, "In addtion to html and xml-urls, also check image, js and css-urls, among others.")
+	grawlCmd.Flags().Float32Var(&flags.FlagRequestTimeout, "request-timeout", 10, "Timeout in seconds to wait for a response.")
 }
 
 func warmItUp(url string) {
