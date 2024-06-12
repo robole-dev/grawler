@@ -12,11 +12,13 @@ var (
 	flagVersion bool
 	rootCmd     = &cobra.Command{
 		Use:   "grawler",
-		Short: "A simple url scraping application.",
-		Long:  `This app scrapes the website of the given url and finds all relative links and visit these urls.`,
+		Short: "A simple web crawling application.",
+		Long:  `The grawler scrapes and visit urls from websites and sitemaps and provides some statistics.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if flagVersion {
 				printVersion()
+			} else {
+				_ = cmd.Help()
 			}
 		},
 		//Args: cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),

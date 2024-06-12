@@ -11,7 +11,7 @@ var (
 		Use:     "grawl",
 		Aliases: []string{"crawl"},
 		Short:   "Crawls the given url",
-		Long:    `The grawler searches for href-attributes and crawls these urls too. It also crawles sitmap.xmls.`,
+		Long:    `This command scrapes and visits all urls from a page or uses an existing sitemap.xml.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			url := args[0]
 			warmItUp(url)
