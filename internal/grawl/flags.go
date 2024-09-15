@@ -3,6 +3,7 @@ package grawl
 type Flags struct {
 	FlagParallel             int
 	FlagDelay                int64
+	FlagRandomDelay          int64
 	FlagMaxDepth             int
 	FlagOutputFilename       string
 	FlagUsername             string

@@ -22,6 +22,7 @@ var (
 
 func init() {
 	grawlCmd.Flags().Int64VarP(&flags.FlagDelay, "delay", "d", 0, "Delay between requests in milliseconds. (default 0)")
+	grawlCmd.Flags().Int64Var(&flags.FlagRandomDelay, "random-delay", 0, "Max random delay between requests in milliseconds. (default 0 for no random delay)")
 	grawlCmd.Flags().IntVarP(&flags.FlagMaxDepth, "max-depth", "m", 0, "Set it to 0 for infinite recursion. (default 0)")
 	grawlCmd.Flags().StringVarP(&flags.FlagOutputFilename, "output-filepath", "o", "", "Write statistic data of each request to this file.")
 	grawlCmd.Flags().IntVarP(&flags.FlagParallel, "parallel", "l", 1, "Number of parallel requests.")

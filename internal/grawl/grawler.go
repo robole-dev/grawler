@@ -77,11 +77,18 @@ func (g *Grawler) Grawl(url string) {
 		c.UserAgent = g.flags.FlagUserAgent
 	}
 
-	err = c.Limit(&colly.LimitRule{
+	limitingRule := &colly.LimitRule{
 		DomainGlob:  "*",
 		Parallelism: g.flags.FlagParallel,
-		Delay:       time.Duration(g.flags.FlagDelay) * time.Millisecond,
-	})
+	}
+
+	if g.flags.FlagRandomDelay > 0 {
+		limitingRule.RandomDelay = time.Duration(g.flags.FlagRandomDelay) * time.Millisecond
+	} else {
+		limitingRule.Delay = time.Duration(g.flags.FlagDelay) * time.Millisecond
+	}
+
+	err = c.Limit(limitingRule)
 	if err != nil {
 		fmt.Println("Error setting limits:", err)
 		return
