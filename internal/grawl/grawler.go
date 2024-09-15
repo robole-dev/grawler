@@ -100,6 +100,7 @@ func (g *Grawler) Grawl(url string) {
 	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Host)
 
 	if len(g.flags.FlagURLFilters) > 0 {
+		c.URLFilters = append(c.URLFilters, regexp.MustCompile("^"+url+"$"))
 		for _, filter := range g.flags.FlagURLFilters {
 			c.URLFilters = append(c.URLFilters, regexp.MustCompile(filter))
 		}
