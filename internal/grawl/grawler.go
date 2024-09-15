@@ -92,6 +92,18 @@ func (g *Grawler) Grawl(url string) {
 	c.AllowedDomains = slices.Concat(c.AllowedDomains, g.flags.FlagAllowedDomains)
 	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Host)
 
+	if len(g.flags.FlagURLFilters) > 0 {
+		for _, filter := range g.flags.FlagURLFilters {
+			c.URLFilters = append(c.URLFilters, regexp.MustCompile(filter))
+		}
+	}
+
+	if len(g.flags.FlagDisallowedURLFilters) > 0 {
+		for _, filter := range g.flags.FlagDisallowedURLFilters {
+			c.DisallowedURLFilters = append(c.DisallowedURLFilters, regexp.MustCompile(filter))
+		}
+	}
+
 	if g.flags.FlagUsername != "" {
 		if g.flags.FlagPassword == "" {
 			g.flags.FlagPassword, err = g.promptPassword()

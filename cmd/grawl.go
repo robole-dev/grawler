@@ -34,6 +34,8 @@ func init() {
 	grawlCmd.Flags().StringVar(&flags.FlagPath, "path", "", "Restrict the crawlings on a certain url path.")
 	grawlCmd.Flags().BoolVarP(&flags.FlagCheckAll, "check-all", "", false, "In addtion to html and xml-urls, also check image, js and css-urls, among others.")
 	grawlCmd.Flags().Float32Var(&flags.FlagRequestTimeout, "request-timeout", 10, "Timeout in seconds to wait for a response.")
+	grawlCmd.Flags().StringSliceVar(&flags.FlagURLFilters, "url-filters", nil, "Only visit urls that match the regular expressions given here.")
+	grawlCmd.Flags().StringSliceVar(&flags.FlagDisallowedURLFilters, "disallowed-url-filters", nil, "Do not visit urls that match the regular expressions given here.")
 }
 
 func warmItUp(url string) {
