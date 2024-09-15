@@ -33,7 +33,7 @@ All features can be read via the help flag
 ```bash
 grawler -h
 ```
-                                                                      
+
 ### Command `grawl`
 
 Search and find all URLs that exist on a given page (`grawler grawl <url>`)
@@ -46,7 +46,17 @@ Options:
 - Set a delay on each request (`--delay <num>` flag)
 - Http Basic Auth (`--username` and `--password` flags. If you omit the password-flag you will get prompted.)
 
-                   
+### Configuration
+
+Precedence for configuration is first given to the flags set on the command-line, then to what's set in your configuration file.
+                           
+Grawler looks first for the command-line flag `--config` (path to the config file), then to the file `grawler.yaml`
+in the current working directory and at least to the path `$HOME/.config/grawler/conf.yaml`.
+
+You can **generate a config file** with default values with the `init` command.
+
+A sample config files can be found here: [sample-conf.yaml](./sample-conf.yaml).
+                                                                                                  
 ## Need to know
 
 Currently we have some trouble to track the redirect http status codes.

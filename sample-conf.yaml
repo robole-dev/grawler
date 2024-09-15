@@ -1,0 +1,17 @@
+grawl:
+    allowed-domains: []
+    check-all: false
+    delay: 0
+    disallowed-url-filters: []
+    max-depth: 0
+    output-filepath: ""
+    parallel: 1
+    password: ""
+    path: ""
+    random-delay: 0
+    request-timeout: "10"
+    respect-robots-txt: false
+    sitemap: false
+    url-filters: []
+    user-agent: grawler
+    username: ""
