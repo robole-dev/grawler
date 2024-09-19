@@ -1,8 +1,6 @@
 package configs
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"log"
@@ -34,11 +32,6 @@ func DefaultConfFileName() string {
 
 func DefaultConfFileType() string {
 	return "yaml"
-}
-
-func BindViperFlag(cobraCommand *cobra.Command, keyPrefix string, flagLookup string) {
-	//viper.BindPFlag(keyPrefix+"."+toSnakeCase(flagLookup), cobraCommand.Flags().Lookup(flagLookup))
-	viper.BindPFlag(keyPrefix+"."+flagLookup, cobraCommand.Flags().Lookup(flagLookup))
 }
 
 func toCamelCase(key string) string {

@@ -28,7 +28,7 @@ var (
 )
 
 func init() {
-	initCmd.Flags().BoolVar(&initFlagUseHome, "home", false, fmt.Sprintf("If enabled it writes the config file to the path \"%s\"", configs.DefaultConfFile()))
+	initCmd.Flags().BoolVar(&initFlagUseHome, "home", false, fmt.Sprintf("If enabled the config file is written to \"%s\"", configs.DefaultConfFile()))
 }
 
 func writeConfigFile(configFilePathParam string) {

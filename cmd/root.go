@@ -16,6 +16,7 @@ var (
 	versionInfo    *version.Info = nil
 	flagVersion    bool
 	flagConfigPath string
+	flagConfigInfo bool
 	rootCmd        = &cobra.Command{
 		Use:   "grawler",
 		Short: "A simple web crawling application.",
@@ -38,6 +39,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.Flags().BoolVarP(&flagVersion, "version", "v", false, "Show version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config", "", "Manually set the path to your config file.")
+	rootCmd.PersistentFlags().BoolVar(&flagConfigInfo, "config-info", false, "Outputs the current configuration values.")
 }
 
 func initConfig() {
@@ -61,10 +63,12 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		var configFileNotFoundError viper.ConfigFileNotFoundError
 		if errors.As(err, &configFileNotFoundError) {
-			//fmt.Println("Config file not found.", flagConfigPath)
+			fmt.Println("No config file found.")
 		} else {
 			log.Fatalln(fmt.Sprintf("Something unexpected happened reading configuration file: %s, err: %s", configFilePath, err))
 		}
+	} else {
+		fmt.Printf("Using config file \"%s\".\n", viper.ConfigFileUsed())
 	}
 }
 
