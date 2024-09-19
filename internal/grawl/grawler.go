@@ -2,14 +2,12 @@ package grawl
 
 import (
 	"encoding/base64"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/gocolly/colly/v2"
 	"github.com/manifoldco/promptui"
 	url2 "net/url"
-	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -29,6 +27,7 @@ type Grawler struct {
 	errorCount      uint32
 	totalDuration   time.Duration
 	runningRequests *RunningRequests
+	fileWriter      *FileWriter
 }
 
 func NewGrawler(flags Flags) *Grawler {
@@ -157,6 +156,10 @@ func (g *Grawler) Grawl(url string) {
 
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
 			g.printResult(reqResult)
+
+			if g.fileWriter != nil {
+				g.fileWriter.WriteResultLine(reqResult)
+			}
 		} else {
 			fmt.Printf("No start time found for %s\n", r.Request.URL)
 		}
@@ -187,7 +190,6 @@ func (g *Grawler) Grawl(url string) {
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
 			g.totalDuration += duration
 			g.printResult(reqResult)
-			//fmt.Println("error:", err)
 		} else {
 			fmt.Println("Request data not found", r.Request.URL)
 		}
@@ -255,14 +257,15 @@ func (g *Grawler) Grawl(url string) {
 		})
 	}
 
+	if g.flags.FlagOutputFilename != "" {
+		g.fileWriter = NewFileWriter(g.flags.FlagOutputFilename)
+		g.fileWriter.InitFile()
+	}
+
 	err = c.Visit(url)
 	if err != nil {
 		fmt.Printf("Could not visit url: %v\n", err)
 		return
-	}
-
-	if g.flags.FlagOutputFilename != "" {
-		g.saveCsvFile(g.runningRequests)
 	}
 
 	g.printSummary()
@@ -302,32 +305,32 @@ func (g *Grawler) printSummary() {
 	fmt.Println("Errors/Skipped:      ", g.errorCount)
 }
 
-func (g *Grawler) saveCsvFile(runningRequests *RunningRequests) {
-	fmt.Printf("Saving file \"%s\".\n", g.flags.FlagOutputFilename)
-
-	results := runningRequests.GetValues()
-
-	file, err := os.Create(g.flags.FlagOutputFilename)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	writer.Comma = ';'
-	defer writer.Flush()
-
-	headers := GetCsvHeader()
-	if err := writer.Write(headers); err != nil {
-		panic(err)
-	}
-
-	for _, result := range *results {
-		if err := writer.Write(result.GetCsvRow()); err != nil {
-			panic(err)
-		}
-	}
-}
+//func (g *Grawler) saveCsvFile(runningRequests *RunningRequests) {
+//	fmt.Printf("Saving file \"%s\".\n", g.flags.FlagOutputFilename)
+//
+//	results := runningRequests.GetValues()
+//
+//	file, err := os.Create(g.flags.FlagOutputFilename)
+//	if err != nil {
+//		panic(err)
+//	}
+//	defer file.Close()
+//
+//	writer := csv.NewWriter(file)
+//	writer.Comma = ';'
+//	defer writer.Flush()
+//
+//	headers := GetCsvHeader()
+//	if err := writer.Write(headers); err != nil {
+//		panic(err)
+//	}
+//
+//	for _, result := range *results {
+//		if err := writer.Write(result.GetCsvRow()); err != nil {
+//			panic(err)
+//		}
+//	}
+//}
 
 func (g *Grawler) promptPassword() (string, error) {
 	validate := func(input string) error {

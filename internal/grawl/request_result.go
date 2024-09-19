@@ -1,7 +1,6 @@
 package grawl
 
 import (
-	"fmt"
 	"github.com/gocolly/colly/v2"
 	"net/http"
 	"strconv"
@@ -106,56 +105,6 @@ func (r *Result) GetPrintRow() string {
 
 	return row
 
-}
-
-func GetCsvHeader() []string {
-	return []string{
-		"Response time",
-		"Status code",
-		"Status",
-		"URL",
-
-		"Found on URL",
-		"Content type",
-		"Duration (ms)",
-		"Depth",
-		"Redirected from",
-
-		"Host",
-		"Path",
-		"Parameters",
-		"Fragment",
-
-		"Info / error",
-	}
-}
-
-func (r *Result) GetCsvRow() []string {
-
-	errorText := ""
-	if r.error != nil {
-		errorText = fmt.Sprintf("%v", r.error)
-	}
-
-	return []string{
-		r.responseAt.Format(DateFormat),
-		strconv.Itoa(r.statusCode),
-		r.status,
-		r.url,
-
-		r.foundOnUrl,
-		r.contentType,
-		strconv.FormatInt(r.duration.Milliseconds(), 10),
-		strconv.Itoa(r.depth),
-		r.urlRedirectedFrom,
-
-		r.urlHost,
-		r.urlPath,
-		r.urlParmeters,
-		r.urlFragment,
-
-		errorText,
-	}
 }
 
 func (r *Result) HasError() bool {
