@@ -124,13 +124,6 @@ func (g *Grawler) Grawl(url string) {
 		g.headerAuth = fmt.Sprintf("Basic %s", auth)
 	}
 
-	//c.SetRedirectHandler(func(req *http.Request, via []*http.Request) error {
-	//	if len(via) > 0 {
-	//		fmt.Println("Redirecting to:", req.URL)
-	//	}
-	//	return http.ErrUseLastResponse
-	//})
-
 	c.OnRequest(func(r *colly.Request) {
 		url = r.URL.String()
 		r.Ctx.Put(ctxOrgUrl, url)
@@ -156,10 +149,6 @@ func (g *Grawler) Grawl(url string) {
 
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
 			g.printResult(reqResult)
-
-			if g.fileWriter != nil {
-				g.fileWriter.WriteResultLine(reqResult)
-			}
 		} else {
 			fmt.Printf("No start time found for %s\n", r.Request.URL)
 		}
@@ -249,7 +238,6 @@ func (g *Grawler) Grawl(url string) {
 				g.totalDuration += duration
 
 				reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
-				//fmt.Println(r.Headers.Get("Content-Type"), r.Request.URL, r.Ctx.Get(ctxOrgUrl))
 				g.printResult(reqResult)
 			} else {
 				fmt.Println("Request data not found", r.Request.URL)
@@ -305,41 +293,9 @@ func (g *Grawler) printSummary() {
 	fmt.Println("Errors/Skipped:      ", g.errorCount)
 }
 
-//func (g *Grawler) saveCsvFile(runningRequests *RunningRequests) {
-//	fmt.Printf("Saving file \"%s\".\n", g.flags.FlagOutputFilename)
-//
-//	results := runningRequests.GetValues()
-//
-//	file, err := os.Create(g.flags.FlagOutputFilename)
-//	if err != nil {
-//		panic(err)
-//	}
-//	defer file.Close()
-//
-//	writer := csv.NewWriter(file)
-//	writer.Comma = ';'
-//	defer writer.Flush()
-//
-//	headers := GetCsvHeader()
-//	if err := writer.Write(headers); err != nil {
-//		panic(err)
-//	}
-//
-//	for _, result := range *results {
-//		if err := writer.Write(result.GetCsvRow()); err != nil {
-//			panic(err)
-//		}
-//	}
-//}
-
 func (g *Grawler) promptPassword() (string, error) {
 	validate := func(input string) error {
 		return nil
-		//_, err := strconv.Parse(input, 64)
-		//if err != nil {
-		//	return errors.New("Invalid number")
-		//}
-		//return nil
 	}
 
 	prompt := promptui.Prompt{
@@ -355,7 +311,6 @@ func (g *Grawler) promptPassword() (string, error) {
 		return "", err
 	}
 
-	//fmt.Printf("You choose %q\n", result)
 	return result, nil
 }
 
@@ -366,5 +321,9 @@ func (g *Grawler) printResult(result *Result) {
 		color.Red(result.GetPrintRow())
 	} else {
 		color.Green(result.GetPrintRow())
+	}
+
+	if g.fileWriter != nil {
+		g.fileWriter.WriteResultLine(result)
 	}
 }
