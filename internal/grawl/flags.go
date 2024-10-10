@@ -17,4 +17,6 @@ type Flags struct {
 	FlagRequestTimeout       float32
 	FlagDisallowedURLFilters []string
 	FlagURLFilters           []string
+	FlagStopOnError          bool
+	//FlagResponseErrorCodes   []string
 }

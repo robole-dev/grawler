@@ -8,35 +8,37 @@ import (
 )
 
 type Result struct {
-	id                uint32
-	Index             int
-	orgUrl            string
-	url               string
-	urlHost           string
-	urlPath           string
-	urlParmeters      string
-	urlFragment       string
-	urlRedirectedFrom string
-	duration          time.Duration
-	requestAt         time.Time
-	responseAt        time.Time
-	statusCode        int
-	error             error
-	status            string
-	statusShort       string
-	foundOnUrl        string
-	contentType       string
-	depth             int
+	id                  uint32
+	Index               int
+	orgUrl              string
+	url                 string
+	urlHost             string
+	urlPath             string
+	urlParmeters        string
+	urlFragment         string
+	urlRedirectedFrom   string
+	duration            time.Duration
+	requestAt           time.Time
+	responseAt          time.Time
+	statusCode          int
+	error               error
+	status              string
+	statusShort         string
+	foundOnUrl          string
+	contentType         string
+	depth               int
+	httpErrorCodeRanges *responseCodeRanges
 }
 
-func NewResult(id uint32, url string, foundOnUrl string) *Result {
+func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *responseCodeRanges) *Result {
 	//fmt.Println("found on", foundOnUrl)
 	return &Result{
-		id:         id,
-		orgUrl:     url,
-		url:        url,
-		foundOnUrl: foundOnUrl,
-		requestAt:  time.Now(),
+		id:                  id,
+		orgUrl:              url,
+		url:                 url,
+		foundOnUrl:          foundOnUrl,
+		requestAt:           time.Now(),
+		httpErrorCodeRanges: httpErrorRanges,
 	}
 }
 
@@ -108,5 +110,5 @@ func (r *Result) GetPrintRow() string {
 }
 
 func (r *Result) HasError() bool {
-	return r.error != nil || r.statusCode >= 400
+	return r.error != nil || r.httpErrorCodeRanges.IsError(r.statusCode)
 }

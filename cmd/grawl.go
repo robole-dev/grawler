@@ -42,6 +42,8 @@ const (
 	flagNameRequestTimeout       = "request-timeout"
 	flagNameUrlFilters           = "url-filters"
 	flagNameDisallowedURLFilters = "disallowed-url-filters"
+	flagNameStopOnError          = "stop-on-error"
+	//flagNameResponseErrorCodes   = "http-error-codes"
 )
 
 func init() {
@@ -92,6 +94,12 @@ func init() {
 
 	grawlCmd.Flags().StringSliceVar(&grawlFlags.FlagDisallowedURLFilters, flagNameDisallowedURLFilters, nil, "Do not visit urls that match the regular expressions given here.")
 	bindViperFlag(flagNameDisallowedURLFilters)
+
+	grawlCmd.Flags().BoolVar(&grawlFlags.FlagStopOnError, flagNameStopOnError, false, "The grawling stops on errors.")
+	bindViperFlag(flagNameStopOnError)
+
+	//grawlCmd.Flags().StringSliceVar(&grawlFlags.FlagResponseErrorCodes, flagNameResponseErrorCodes, []string{"400-599"}, "The http error codes that are evaluated as errors. You can define multiple single vales or multiple value ranges.")
+	//bindViperFlag(flagNameResponseErrorCodes)
 }
 
 func warmItUp(url string) {
@@ -113,6 +121,8 @@ func warmItUp(url string) {
 	grawlFlags.FlagRequestTimeout = cast.ToFloat32(viper.Get(viperGrawlPrefix + "." + flagNameRequestTimeout))
 	grawlFlags.FlagURLFilters = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameUrlFilters)
 	grawlFlags.FlagDisallowedURLFilters = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameDisallowedURLFilters)
+	grawlFlags.FlagStopOnError = viper.GetBool(viperGrawlPrefix + "." + flagNameStopOnError)
+	//grawlFlags.FlagResponseErrorCodes = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameResponseErrorCodes)
 
 	if flagConfigInfo {
 		fmt.Println("")
@@ -135,7 +145,8 @@ func warmItUp(url string) {
 		fmt.Println("RequestTimeout:", grawlFlags.FlagRequestTimeout)
 		fmt.Println("URLFilters:", grawlFlags.FlagURLFilters)
 		fmt.Println("DisallowedURLFilters:", grawlFlags.FlagDisallowedURLFilters)
-		fmt.Println("")
+		fmt.Println("StopOnError:", grawlFlags.FlagStopOnError)
+		//fmt.Println("HttpErrorCodes:", grawlFlags.FlagResponseErrorCodes)
 	}
 
 	grawler := grawl.NewGrawler(grawlFlags)
