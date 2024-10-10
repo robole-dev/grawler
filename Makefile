@@ -48,6 +48,11 @@ setup: FORCE
 install: FORCE
 	go install .
 
+update: FORCE
+	go get -u ./...
+	go mod vendor
+	go mod tidy
+
 test: FORCE
 
 dev: FORCE

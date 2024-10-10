@@ -8,6 +8,7 @@ import (
 	"github.com/gocolly/colly/v2"
 	"github.com/manifoldco/promptui"
 	url2 "net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -20,24 +21,32 @@ const (
 )
 
 type Grawler struct {
-	flags           Flags
-	headerAuth      string
-	requestCount    uint32
-	responseCount   int
-	errorCount      uint32
-	totalDuration   time.Duration
-	runningRequests *RunningRequests
-	fileWriter      *FileWriter
+	flags               Flags
+	headerAuth          string
+	requestCount        uint32
+	responseCount       int
+	errorCount          uint32
+	totalDuration       time.Duration
+	runningRequests     *RunningRequests
+	fileWriter          *FileWriter
+	responseErrorRanges *responseCodeRanges
 }
 
 func NewGrawler(flags Flags) *Grawler {
+	//errorCodeRanges, err := newResponseCodeRanges(flags.FlagResponseErrorCodes)
+	errorCodeRanges, err := newResponseCodeRanges([]string{})
+	if err != nil {
+		panic(err)
+	}
+
 	return &Grawler{
-		flags:           flags,
-		requestCount:    0,
-		responseCount:   0,
-		errorCount:      0,
-		totalDuration:   time.Duration(0),
-		runningRequests: NewRunningRequests(),
+		flags:               flags,
+		requestCount:        0,
+		responseCount:       0,
+		errorCount:          0,
+		totalDuration:       time.Duration(0),
+		runningRequests:     NewRunningRequests(),
+		responseErrorRanges: errorCodeRanges,
 	}
 }
 
@@ -133,7 +142,7 @@ func (g *Grawler) Grawl(url string) {
 		}
 
 		foundOnUrl := g.runningRequests.GetFoundUrl(url)
-		requestResult := NewResult(r.ID, url, foundOnUrl)
+		requestResult := NewResult(r.ID, url, foundOnUrl, g.responseErrorRanges)
 
 		g.runningRequests.Store(r.ID, requestResult, url)
 		g.requestCount++
@@ -149,6 +158,7 @@ func (g *Grawler) Grawl(url string) {
 
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
 			g.printResult(reqResult)
+			g.checkStopOnError(reqResult)
 		} else {
 			fmt.Printf("No start time found for %s\n", r.Request.URL)
 		}
@@ -171,14 +181,13 @@ func (g *Grawler) Grawl(url string) {
 			return
 		}
 
-		//ErrAbortedAfterHeaders
-
 		reqResult, ok := g.runningRequests.Load(r.Request.ID)
 		if ok {
 			duration := time.Since(reqResult.GetRequestAt())
 			reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
 			g.totalDuration += duration
 			g.printResult(reqResult)
+			g.checkStopOnError(reqResult)
 		} else {
 			fmt.Println("Request data not found", r.Request.URL)
 		}
@@ -239,6 +248,7 @@ func (g *Grawler) Grawl(url string) {
 
 				reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
 				g.printResult(reqResult)
+				g.checkStopOnError(reqResult)
 			} else {
 				fmt.Println("Request data not found", r.Request.URL)
 			}
@@ -325,5 +335,15 @@ func (g *Grawler) printResult(result *Result) {
 
 	if g.fileWriter != nil {
 		g.fileWriter.WriteResultLine(result)
+	}
+}
+
+func (g *Grawler) checkStopOnError(result *Result) {
+	if g.flags.FlagStopOnError && result.HasError() {
+		fmt.Println("Stop grawling after error.")
+		if result.error != nil {
+			fmt.Printf("Grawling error: %s\n", result.error.Error())
+		}
+		os.Exit(1)
 	}
 }
