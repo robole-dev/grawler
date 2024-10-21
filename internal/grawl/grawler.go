@@ -30,6 +30,7 @@ type Grawler struct {
 	runningRequests     *RunningRequests
 	fileWriter          *FileWriter
 	responseErrorRanges *responseCodeRanges
+	collector           *colly.Collector
 }
 
 func NewGrawler(flags Flags) *Grawler {
@@ -61,6 +62,7 @@ func (g *Grawler) Grawl(url string) {
 	}
 
 	c := colly.NewCollector()
+	g.collector = c
 	c.MaxDepth = g.flags.FlagMaxDepth
 	c.SetRequestTimeout(time.Duration(g.flags.FlagRequestTimeout * float32(time.Second)))
 
@@ -152,16 +154,16 @@ func (g *Grawler) Grawl(url string) {
 		g.responseCount++
 
 		reqResult, ok := g.runningRequests.Load(r.Request.ID)
-		if ok {
-			duration := time.Since(reqResult.GetRequestAt())
-			g.totalDuration += duration
-
-			reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
-			g.printResult(reqResult)
-			g.checkStopOnError(reqResult)
-		} else {
+		if !ok {
 			fmt.Printf("No start time found for %s\n", r.Request.URL)
 		}
+
+		duration := time.Since(reqResult.GetRequestAt())
+		g.totalDuration += duration
+
+		reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
+		g.printResult(reqResult)
+		g.checkStopOnError(reqResult)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
@@ -339,11 +341,54 @@ func (g *Grawler) printResult(result *Result) {
 }
 
 func (g *Grawler) checkStopOnError(result *Result) {
-	if g.flags.FlagStopOnError && result.HasError() {
+	if !result.HasError() {
+		return
+	}
+
+	if g.flags.FlagStopOnError {
 		fmt.Println("Stop grawling after error.")
 		if result.error != nil {
 			fmt.Printf("Grawling error: %s\n", result.error.Error())
 		}
 		os.Exit(1)
+	}
+
+	if g.flags.FlagPauseOnError {
+		fmt.Println("Pause grawling after error.")
+		prompt := g.promptResume()
+		switch prompt {
+		case "a":
+			fmt.Println("Grawling aborted.")
+			os.Exit(1)
+		case "s":
+			fmt.Println("Url skipped.")
+			return
+		case "r":
+			fmt.Println("Retry url...")
+			allowRevisit := g.collector.AllowURLRevisit
+			g.collector.AllowURLRevisit = true
+			_ = g.collector.Visit(result.url)
+			g.collector.AllowURLRevisit = allowRevisit
+		}
+	}
+}
+
+func (g *Grawler) promptResume() interface{} {
+	str := "Please choose: [a]bort the grawling or [r]etry the url or [s]kip the url."
+	for {
+		fmt.Println(str)
+		var input string
+		_, err := fmt.Scanln(&input)
+		if err != nil {
+			return nil
+		}
+		input = strings.ToLower(strings.TrimSpace(input))
+
+		switch input {
+		case "a", "s", "r":
+			return input
+		default:
+			//fmt.Println(str)
+		}
 	}
 }

@@ -18,5 +18,6 @@ type Flags struct {
 	FlagDisallowedURLFilters []string
 	FlagURLFilters           []string
 	FlagStopOnError          bool
+	FlagPauseOnError         bool
 	//FlagResponseErrorCodes   []string
 }

@@ -43,7 +43,7 @@ const (
 	flagNameUrlFilters           = "url-filters"
 	flagNameDisallowedURLFilters = "disallowed-url-filters"
 	flagNameStopOnError          = "stop-on-error"
-	//flagNameResponseErrorCodes   = "http-error-codes"
+	flagNamePauseOnError         = "pause-on-error"
 )
 
 func init() {
@@ -98,6 +98,9 @@ func init() {
 	grawlCmd.Flags().BoolVar(&grawlFlags.FlagStopOnError, flagNameStopOnError, false, "The grawling stops on errors.")
 	bindViperFlag(flagNameStopOnError)
 
+	grawlCmd.Flags().BoolVar(&grawlFlags.FlagPauseOnError, flagNamePauseOnError, false, "The grawling pauses on errors and you have the option to cancel, skip or try again.")
+	bindViperFlag(flagNamePauseOnError)
+
 	//grawlCmd.Flags().StringSliceVar(&grawlFlags.FlagResponseErrorCodes, flagNameResponseErrorCodes, []string{"400-599"}, "The http error codes that are evaluated as errors. You can define multiple single vales or multiple value ranges.")
 	//bindViperFlag(flagNameResponseErrorCodes)
 }
@@ -122,6 +125,7 @@ func warmItUp(url string) {
 	grawlFlags.FlagURLFilters = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameUrlFilters)
 	grawlFlags.FlagDisallowedURLFilters = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameDisallowedURLFilters)
 	grawlFlags.FlagStopOnError = viper.GetBool(viperGrawlPrefix + "." + flagNameStopOnError)
+	grawlFlags.FlagPauseOnError = viper.GetBool(viperGrawlPrefix + "." + flagNamePauseOnError)
 	//grawlFlags.FlagResponseErrorCodes = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameResponseErrorCodes)
 
 	if flagConfigInfo {
@@ -146,6 +150,7 @@ func warmItUp(url string) {
 		fmt.Println("URLFilters:", grawlFlags.FlagURLFilters)
 		fmt.Println("DisallowedURLFilters:", grawlFlags.FlagDisallowedURLFilters)
 		fmt.Println("StopOnError:", grawlFlags.FlagStopOnError)
+		fmt.Println("PauseOnError:", grawlFlags.FlagPauseOnError)
 		//fmt.Println("HttpErrorCodes:", grawlFlags.FlagResponseErrorCodes)
 	}
 
