@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 )
@@ -21,11 +22,13 @@ const (
 )
 
 type Grawler struct {
-	flags               Flags
-	headerAuth          string
-	requestCount        uint32
-	responseCount       int
-	errorCount          uint32
+	flags         Flags
+	headerAuth    string
+	requestCount  uint32
+	responseCount int
+	errorCount    uint32
+	//durationMin         int
+	//durationMax         int
 	totalDuration       time.Duration
 	runningRequests     *RunningRequests
 	fileWriter          *FileWriter
@@ -271,20 +274,6 @@ func (g *Grawler) Grawl(url string) {
 	g.printSummary()
 }
 
-func isXmlResponse(resp *colly.Response) bool {
-	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
-	isXmlContentType := strings.Contains(contentType, "xml")
-	isHtmlContentType := strings.Contains(contentType, "html")
-
-	return !isHtmlContentType && (isXMLFile || isXmlContentType)
-}
-
-func isHtmlResponse(resp *colly.Response) bool {
-	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	return strings.Contains(contentType, "html")
-}
-
 func (g *Grawler) visit(c *colly.Collector, r *colly.Request, url string, foundOnUrl string) {
 	url = strings.Trim(url, " ")
 	visited, err := c.HasVisited(url)
@@ -296,13 +285,42 @@ func (g *Grawler) visit(c *colly.Collector, r *colly.Request, url string, foundO
 }
 
 func (g *Grawler) printSummary() {
+	durationMin := time.Hour
+	durationMax := time.Duration(0)
+	returnCodes := map[int]int{}
+	returnErrors := 0
+	for _, result := range *g.runningRequests.GetValues() {
+		durationMin = min(durationMin, result.duration)
+		durationMax = max(durationMax, result.duration)
+		if result.statusCode > 0 {
+			returnCodes[result.statusCode]++
+		} else {
+			returnErrors++
+		}
+	}
+
+	// Eine Slice für die Schlüssel erstellen
+	returnCodeKeys := make([]int, 0, len(returnCodes))
+
+	// Alle Schlüssel der Map sammeln
+	for key := range returnCodes {
+		returnCodeKeys = append(returnCodeKeys, key)
+	}
+
+	// Die Schlüssel aufsteigend sortieren
+	sort.Ints(returnCodeKeys)
+
 	fmt.Println("")
 	fmt.Println("Grawling finished at:", time.Now().Format(DateFormat))
 	fmt.Println("Duration:            ", g.totalDuration.Round(time.Millisecond))
-	fmt.Println("Avg request duration:", time.Duration(int64(g.totalDuration)/int64(g.requestCount)).Round(time.Millisecond))
-	fmt.Println("Responses:           ", g.responseCount)
+	fmt.Println("  - Min:             ", durationMin.Round(time.Millisecond))
+	fmt.Println("  - Max:             ", durationMax.Round(time.Millisecond))
+	fmt.Println("  - Avg:             ", time.Duration(int64(g.totalDuration)/int64(g.requestCount)).Round(time.Millisecond))
 	fmt.Println("Requests:            ", g.requestCount)
-	fmt.Println("Errors/Skipped:      ", g.errorCount)
+	for _, code := range returnCodeKeys {
+		fmt.Printf("  - Status code %d:  %d\n", code, returnCodes[code])
+	}
+	fmt.Printf("  - Other errors:     %d\n", returnErrors)
 }
 
 func (g *Grawler) promptPassword() (string, error) {
@@ -391,4 +409,18 @@ func (g *Grawler) promptResume() interface{} {
 			//fmt.Println(str)
 		}
 	}
+}
+
+func isXmlResponse(resp *colly.Response) bool {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
+	isXmlContentType := strings.Contains(contentType, "xml")
+	isHtmlContentType := strings.Contains(contentType, "html")
+
+	return !isHtmlContentType && (isXMLFile || isXmlContentType)
+}
+
+func isHtmlResponse(resp *colly.Response) bool {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	return strings.Contains(contentType, "html")
 }
