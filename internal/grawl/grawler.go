@@ -7,6 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/gocolly/colly/v2"
 	"github.com/manifoldco/promptui"
+	"net/http"
 	url2 "net/url"
 	"os"
 	"regexp"
@@ -18,22 +19,21 @@ import (
 
 const (
 	DateFormat = "2006-01-02 15:04:05.000"
-	ctxOrgUrl  = "orgUrl"
+	ctxOrgUrl  = "initialRequestUrl"
 )
 
 type Grawler struct {
-	flags         Flags
-	headerAuth    string
-	requestCount  uint32
-	responseCount int
-	errorCount    uint32
-	//durationMin         int
-	//durationMax         int
+	flags               Flags
+	headerAuth          string
+	requestCount        uint32
+	responseCount       int
+	errorCount          uint32
 	totalDuration       time.Duration
 	runningRequests     *RunningRequests
 	fileWriter          *FileWriter
 	responseErrorRanges *responseCodeRanges
 	collector           *colly.Collector
+	redirections        int
 }
 
 func NewGrawler(flags Flags) *Grawler {
@@ -51,6 +51,7 @@ func NewGrawler(flags Flags) *Grawler {
 		totalDuration:       time.Duration(0),
 		runningRequests:     NewRunningRequests(),
 		responseErrorRanges: errorCodeRanges,
+		redirections:        0,
 	}
 }
 
@@ -67,6 +68,7 @@ func (g *Grawler) Grawl(url string) {
 	c := colly.NewCollector()
 	g.collector = c
 	c.MaxDepth = g.flags.FlagMaxDepth
+	c.Async = true
 	c.SetRequestTimeout(time.Duration(g.flags.FlagRequestTimeout * float32(time.Second)))
 
 	if g.flags.FlagPath != "" {
@@ -140,7 +142,7 @@ func (g *Grawler) Grawl(url string) {
 
 	c.OnRequest(func(r *colly.Request) {
 		url = r.URL.String()
-		r.Ctx.Put(ctxOrgUrl, url)
+		//r.Ctx.Put(ctxOrgUrl, url)
 
 		if g.headerAuth != "" {
 			r.Headers.Set("Authorization", g.headerAuth)
@@ -260,12 +262,24 @@ func (g *Grawler) Grawl(url string) {
 		})
 	}
 
+	c.SetRedirectHandler(func(req *http.Request, via []*http.Request) error {
+		runningReq, ok := g.runningRequests.LoadByUrl(via[0].URL.String())
+		g.redirections += len(via)
+		if ok {
+			fmt.Printf("Redirecting to %s from %s. ID: %d\n", req.URL, via[0].URL, runningReq.id)
+		} else {
+			return fmt.Errorf("Could not find initial url of redirection to %s from %s\n", req.URL, via[0].URL)
+		}
+		return nil
+	})
+
 	if g.flags.FlagOutputFilename != "" {
 		g.fileWriter = NewFileWriter(g.flags.FlagOutputFilename)
 		g.fileWriter.InitFile()
 	}
 
 	err = c.Visit(url)
+	c.Wait()
 	if err != nil {
 		fmt.Printf("Could not visit url: %v\n", err)
 		return
@@ -281,6 +295,7 @@ func (g *Grawler) visit(c *colly.Collector, r *colly.Request, url string, foundO
 		g.runningRequests.AddFoundUrl(url, foundOnUrl)
 	}
 
+	fmt.Println("Visit: ", r.ID, r.URL)
 	_ = r.Visit(url)
 }
 
@@ -299,15 +314,10 @@ func (g *Grawler) printSummary() {
 		}
 	}
 
-	// Eine Slice für die Schlüssel erstellen
 	returnCodeKeys := make([]int, 0, len(returnCodes))
-
-	// Alle Schlüssel der Map sammeln
 	for key := range returnCodes {
 		returnCodeKeys = append(returnCodeKeys, key)
 	}
-
-	// Die Schlüssel aufsteigend sortieren
 	sort.Ints(returnCodeKeys)
 
 	fmt.Println("")
@@ -321,6 +331,40 @@ func (g *Grawler) printSummary() {
 		fmt.Printf("  - Status code %d:  %d\n", code, returnCodes[code])
 	}
 	fmt.Printf("  - Other errors:     %d\n", returnErrors)
+	fmt.Printf("  - Redirections:     %d\n", g.redirections)
+}
+
+func (g *Grawler) printResult(result *Result) {
+	if result.IsRedirected() {
+		color.Yellow(result.GetPrintRow())
+	} else if result.HasError() {
+		color.Red(result.GetPrintRow())
+	} else {
+		color.Green(result.GetPrintRow())
+	}
+
+	if g.fileWriter != nil {
+		g.fileWriter.WriteResultLine(result)
+	}
+
+	g.updateStatusBar(result)
+}
+
+func (g *Grawler) updateStatusBar(result *Result) {
+
+	//fmt.Printf("queue %d", g.collector.)
+
+	//line := "cool: " + result.GetPrintRow()
+	//
+	//printFixedBottomLine(line)
+}
+
+func printFixedBottomLine(line string) {
+	// ANSI Code um den Cursor auf die letzte Zeile zu setzen
+	fmt.Printf("\033[s")              // Speichere die aktuelle Cursor-Position
+	fmt.Printf("\033[H\033[2J")       // Lösche den Bildschirm
+	fmt.Printf("\033[999;1H%s", line) // Setze Cursor an die letzte Zeile und drucke die Zeile
+	fmt.Printf("\033[u")              // Stelle die gespeicherte Cursor-Position wieder her
 }
 
 func (g *Grawler) promptPassword() (string, error) {
@@ -342,20 +386,6 @@ func (g *Grawler) promptPassword() (string, error) {
 	}
 
 	return result, nil
-}
-
-func (g *Grawler) printResult(result *Result) {
-	if result.IsRedirected() {
-		color.Yellow(result.GetPrintRow())
-	} else if result.HasError() {
-		color.Red(result.GetPrintRow())
-	} else {
-		color.Green(result.GetPrintRow())
-	}
-
-	if g.fileWriter != nil {
-		g.fileWriter.WriteResultLine(result)
-	}
 }
 
 func (g *Grawler) checkStopOnError(result *Result) {
@@ -409,18 +439,4 @@ func (g *Grawler) promptResume() interface{} {
 			//fmt.Println(str)
 		}
 	}
-}
-
-func isXmlResponse(resp *colly.Response) bool {
-	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
-	isXmlContentType := strings.Contains(contentType, "xml")
-	isHtmlContentType := strings.Contains(contentType, "html")
-
-	return !isHtmlContentType && (isXMLFile || isXmlContentType)
-}
-
-func isHtmlResponse(resp *colly.Response) bool {
-	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	return strings.Contains(contentType, "html")
 }

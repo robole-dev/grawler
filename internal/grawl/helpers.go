@@ -1,6 +1,10 @@
 package grawl
 
-import "net/http"
+import (
+	"github.com/gocolly/colly/v2"
+	"net/http"
+	"strings"
+)
 
 func StatusAbbreviation(code int) string {
 	switch code {
@@ -131,4 +135,18 @@ func StatusAbbreviation(code int) string {
 	default:
 		return "??"
 	}
+}
+
+func isXmlResponse(resp *colly.Response) bool {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
+	isXmlContentType := strings.Contains(contentType, "xml")
+	isHtmlContentType := strings.Contains(contentType, "html")
+
+	return !isHtmlContentType && (isXMLFile || isXmlContentType)
+}
+
+func isHtmlResponse(resp *colly.Response) bool {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	return strings.Contains(contentType, "html")
 }

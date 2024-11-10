@@ -10,7 +10,7 @@ import (
 type Result struct {
 	id                  uint32
 	Index               int
-	orgUrl              string
+	initialRequestUrl   string
 	url                 string
 	urlHost             string
 	urlPath             string
@@ -34,7 +34,7 @@ func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *respon
 	//fmt.Println("found on", foundOnUrl)
 	return &Result{
 		id:                  id,
-		orgUrl:              url,
+		initialRequestUrl:   url,
 		url:                 url,
 		foundOnUrl:          foundOnUrl,
 		requestAt:           time.Now(),
@@ -52,11 +52,14 @@ func (r *Result) IsRedirected() bool {
 
 func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration time.Duration, err *error) {
 
-	orgUrl := response.Request.Ctx.Get(ctxOrgUrl)
+	//requestId := response.Request.ID
+	//initialRequestUrl := response.Request.Ctx.Get(ctxOrgUrl)
+	initialRequestUrl := r.initialRequestUrl
+	requestUrl := response.Request.URL.String()
 
-	if orgUrl != response.Request.URL.String() {
-		r.urlRedirectedFrom = orgUrl
-		r.url = response.Request.URL.String()
+	if initialRequestUrl != requestUrl {
+		r.urlRedirectedFrom = initialRequestUrl
+		r.url = requestUrl
 	}
 
 	r.status = http.StatusText(response.StatusCode)
@@ -64,7 +67,7 @@ func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration 
 
 	if err != nil && response.StatusCode == 0 {
 		r.status = "Skipped"
-	} else if r.urlRedirectedFrom != "" {
+	} else if r.IsRedirected() {
 		r.status += " (Redirected)"
 	}
 
@@ -94,6 +97,8 @@ func (r *Result) GetPrintRow() string {
 	row += strconv.Itoa(r.statusCode)
 	row += " "
 	row += StatusAbbreviation(r.statusCode)
+	row += " - "
+	row += strconv.Itoa(int(r.id))
 	row += " - "
 	row += r.url
 

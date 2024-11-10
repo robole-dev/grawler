@@ -9,10 +9,16 @@ import (
 
 type RunningRequests struct {
 	sync.RWMutex
-	results       map[uint32]*Result
+	results map[uint32]*Result
+	//requests      map[uint32]*RunningRequest
 	idByUrl       map[string]uint32
 	foundUrlOnUrl map[string]string
 }
+
+//type RunningRequest struct {
+//	result *Result
+//	initialRequestUrl string
+//}
 
 func NewRunningRequests() *RunningRequests {
 	return &RunningRequests{
@@ -38,9 +44,9 @@ func (rr *RunningRequests) GetValues() *[]*Result {
 	return &values
 }
 
-func (rr *RunningRequests) Load(key uint32) (value *Result, ok bool) {
+func (rr *RunningRequests) Load(requestId uint32) (value *Result, ok bool) {
 	rr.RLock()
-	result, ok := rr.results[key]
+	result, ok := rr.results[requestId]
 	rr.RUnlock()
 	return result, ok
 }
@@ -66,10 +72,10 @@ func (rr *RunningRequests) Delete(key uint32) {
 	rr.Unlock()
 }
 
-func (rr *RunningRequests) Store(key uint32, value *Result, url string) *Result {
+func (rr *RunningRequests) Store(requestId uint32, value *Result, url string) *Result {
 	rr.Lock()
-	rr.results[key] = value
-	rr.idByUrl[url] = key
+	rr.results[requestId] = value
+	rr.idByUrl[url] = requestId
 	rr.Unlock()
 	return value
 }
