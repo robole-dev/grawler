@@ -1,0 +1,113 @@
+version: '3'
+
+vars:
+    APP_EXECUTABLE: grawler
+    BUILD_DIR: "{{.TASKFILE_DIR}}/dist"
+    BUILD_COMMAND: CGO_ENABLED=0 go build -ldflags="-s -w"
+
+tasks:
+
+    #
+    # BUILD (PRODUCTION)
+    #
+    build:
+        desc: "Build project"
+        cmds:
+            -   task: setup
+            -   task: build-linux
+            -   task: build-mac-arm64
+            -   task: build-mac-amd64
+            -   task: build-windows
+            -   task: tar-gz
+
+    build-windows:
+        desc: "Build for windows"
+        env:
+            GOOS: windows
+            GOARCH: amd64
+        cmds:
+            - "{{.BUILD_COMMAND}} -o {{.BUILD_DIR}}/{{.APP_EXECUTABLE}}_windows-amd64/{{.APP_EXECUTABLE}}.exe ."
+
+    build-linux:
+        desc: "Build for linux"
+        env:
+            GOOS: linux
+            GOARCH: amd64
+        cmds:
+            - "{{.BUILD_COMMAND}} -o {{.BUILD_DIR}}/{{.APP_EXECUTABLE}}_linux-amd64/{{.APP_EXECUTABLE}} ."
+
+    build-mac-amd64:
+        desc: "Build for mac"
+        env:
+            GOOS: darwin
+            GOARCH: amd64
+        cmds:
+            - "{{.BUILD_COMMAND}} -o {{.BUILD_DIR}}/{{.APP_EXECUTABLE}}_darwin-amd64/{{.APP_EXECUTABLE}} ."
+
+    build-mac-arm64:
+        desc: "Build for mac"
+        env:
+            GOOS: darwin
+            GOARCH: arm64
+        cmds:
+            - "{{.BUILD_COMMAND}} -o {{.BUILD_DIR}}/{{.APP_EXECUTABLE}}_darwin-arm64/{{.APP_EXECUTABLE}} ."
+
+    build-android-amd64:
+        desc: "Build for android amd64"
+        env:
+            GOOS: darwin
+            GOARCH: amd64
+        cmds:
+            - "{{.BUILD_COMMAND}} -o {{.BUILD_DIR}}/{{.APP_EXECUTABLE}}_android-amd64/{{.APP_EXECUTABLE}} ."
+
+    build-android-arm64:
+        desc: "Build for android arm64"
+        env:
+            GOOS: darwin
+            GOARCH: arm64
+        cmds:
+            - "{{.BUILD_COMMAND}} -o {{.BUILD_DIR}}/{{.APP_EXECUTABLE}}_android-arm64/{{.APP_EXECUTABLE}} ."
+
+    zip:
+        dir: "{{.BUILD_DIR}}"
+        cmds:
+            - |
+                @for d in */ ; do 
+                    zip -r "$${d%/}.zip" "$$d"; 
+                done
+
+    tar-gz:
+        dir: "{{.BUILD_DIR}}"
+        cmds:
+            - |
+                for d in */ ; do 
+                    tar -czvf "${d%/}.tar.gz" "$d"; 
+                    sha256sum "${d%/}.tar.gz" > "${d%/}.tar.gz.sha256"; 
+                done
+        shopt:
+            - nullglob
+        silent: false
+
+    setup:
+        cmds:
+            - mkdir -p {{.BUILD_DIR}}
+            - go mod vendor
+            - go mod tidy
+
+    install:
+        cmds:
+            - go install .
+
+    update:
+        cmds:
+            - go get -u ./...
+            - go mod vendor
+            - go mod tidy
+
+    run:
+        aliases:
+            - dev
+        env:
+            DEBUG: 1
+        cmds:
+            - go run .
