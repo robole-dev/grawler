@@ -6,7 +6,7 @@ toolchain go1.23.1
 
 require (
 	github.com/fatih/color v1.17.0
-	github.com/gocolly/colly/v2 v2.1.0
+	github.com/gocolly/colly/v2 v2.1.1-0.20240605174350-99b7fb1b87d1
 	github.com/manifoldco/promptui v0.9.0
 	github.com/spf13/cast v1.7.0
 	github.com/spf13/cobra v1.8.1
@@ -20,6 +20,7 @@ require (
 	github.com/antchfx/htmlquery v1.3.3 // indirect
 	github.com/antchfx/xmlquery v1.4.2 // indirect
 	github.com/antchfx/xpath v1.3.2 // indirect
+	github.com/bits-and-blooms/bitset v1.2.2-0.20220111210104-dfa3e347c392 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
@@ -32,6 +33,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/nlnwa/whatwg-url v0.1.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/sagikazarmark/locafero v0.6.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect

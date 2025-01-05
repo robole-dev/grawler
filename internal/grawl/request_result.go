@@ -98,8 +98,6 @@ func (r *Result) GetPrintRow() string {
 	row += " "
 	row += StatusAbbreviation(r.statusCode)
 	row += " - "
-	row += strconv.Itoa(int(r.id))
-	row += " - "
 	row += r.url
 
 	if r.IsRedirected() {

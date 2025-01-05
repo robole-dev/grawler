@@ -8,12 +8,14 @@ import (
 	"github.com/gocolly/colly/v2"
 	"github.com/manifoldco/promptui"
 	"net/http"
-	url2 "net/url"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -33,7 +35,8 @@ type Grawler struct {
 	fileWriter          *FileWriter
 	responseErrorRanges *responseCodeRanges
 	collector           *colly.Collector
-	redirections        int
+	redirections        uint32
+	visitMutex          sync.Mutex
 }
 
 func NewGrawler(flags Flags) *Grawler {
@@ -55,13 +58,13 @@ func NewGrawler(flags Flags) *Grawler {
 	}
 }
 
-func (g *Grawler) Grawl(url string) {
+func (g *Grawler) Grawl(grawlUrl string) {
 
-	fmt.Println("Grawling " + url)
+	fmt.Println("Grawling " + grawlUrl)
 
-	parsedUrl, err := url2.Parse(url)
+	parsedUrl, err := url.Parse(grawlUrl)
 	if err != nil {
-		fmt.Println("Error parsing the url:", err)
+		fmt.Println("Error parsing the grawlUrl:", err)
 		return
 	}
 
@@ -82,7 +85,7 @@ func (g *Grawler) Grawl(url string) {
 
 		regexPatternUrl := fmt.Sprintf(
 			`^%s$`,
-			regexp.QuoteMeta(url),
+			regexp.QuoteMeta(grawlUrl),
 		)
 		regexUrl := regexp.MustCompile(regexPatternUrl)
 		c.URLFilters = append(c.URLFilters, regexUrl)
@@ -115,7 +118,7 @@ func (g *Grawler) Grawl(url string) {
 	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Host)
 
 	if len(g.flags.FlagURLFilters) > 0 {
-		c.URLFilters = append(c.URLFilters, regexp.MustCompile("^"+url+"$"))
+		c.URLFilters = append(c.URLFilters, regexp.MustCompile("^"+grawlUrl+"$"))
 		for _, filter := range g.flags.FlagURLFilters {
 			c.URLFilters = append(c.URLFilters, regexp.MustCompile(filter))
 		}
@@ -140,68 +143,12 @@ func (g *Grawler) Grawl(url string) {
 		g.headerAuth = fmt.Sprintf("Basic %s", auth)
 	}
 
-	c.OnRequest(func(r *colly.Request) {
-		url = r.URL.String()
-		//r.Ctx.Put(ctxOrgUrl, url)
-
-		if g.headerAuth != "" {
-			r.Headers.Set("Authorization", g.headerAuth)
-		}
-
-		foundOnUrl := g.runningRequests.GetFoundUrl(url)
-		requestResult := NewResult(r.ID, url, foundOnUrl, g.responseErrorRanges)
-
-		g.runningRequests.Store(r.ID, requestResult, url)
-		g.requestCount++
-	})
-
-	c.OnResponse(func(r *colly.Response) {
-		g.responseCount++
-
-		reqResult, ok := g.runningRequests.Load(r.Request.ID)
-		if !ok {
-			fmt.Printf("No start time found for %s\n", r.Request.URL)
-		}
-
-		duration := time.Since(reqResult.GetRequestAt())
-		g.totalDuration += duration
-
-		reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
-		g.printResult(reqResult)
-		g.checkStopOnError(reqResult)
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		g.errorCount++
-
-		// Normal error on aborted binary files like images. Result is printed in OnResponseHeaders
-		if err != nil && errors.Is(err, colly.ErrAbortedAfterHeaders) {
-			return
-		}
-
-		//
-		// Remove request if this url is filtered by colly
-		//
-		if r.StatusCode == 0 {
-			fmt.Println("Error", r.Request.URL, err)
-			g.runningRequests.Delete(r.Request.ID)
-			return
-		}
-
-		reqResult, ok := g.runningRequests.Load(r.Request.ID)
-		if ok {
-			duration := time.Since(reqResult.GetRequestAt())
-			reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
-			g.totalDuration += duration
-			g.printResult(reqResult)
-			g.checkStopOnError(reqResult)
-		} else {
-			fmt.Println("Request data not found", r.Request.URL)
-		}
-	})
+	c.OnRequest(g.onRequest)
+	c.OnResponse(g.onResponse)
+	c.OnError(g.onError)
 
 	if g.flags.FlagSitemap {
-		c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
+		c.OnXML("//urlset/grawlUrl/loc", func(e *colly.XMLElement) {
 			g.visit(c, e.Request, e.Request.AbsoluteURL(e.Text), e.Request.URL.String())
 		})
 		c.OnXML("//sitemapindex/sitemap/loc", func(e *colly.XMLElement) {
@@ -211,6 +158,9 @@ func (g *Grawler) Grawl(url string) {
 		c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 			link := e.Attr("href")
 			if strings.HasPrefix(link, "mailto:") {
+				return
+			}
+			if strings.HasPrefix(link, "tel:") {
 				return
 			}
 
@@ -262,41 +212,117 @@ func (g *Grawler) Grawl(url string) {
 		})
 	}
 
-	c.SetRedirectHandler(func(req *http.Request, via []*http.Request) error {
-		runningReq, ok := g.runningRequests.LoadByUrl(via[0].URL.String())
-		g.redirections += len(via)
-		if ok {
-			fmt.Printf("Redirecting to %s from %s. ID: %d\n", req.URL, via[0].URL, runningReq.id)
-		} else {
-			return fmt.Errorf("Could not find initial url of redirection to %s from %s\n", req.URL, via[0].URL)
-		}
-		return nil
-	})
+	c.SetRedirectHandler(g.onRedirect)
 
 	if g.flags.FlagOutputFilename != "" {
 		g.fileWriter = NewFileWriter(g.flags.FlagOutputFilename)
 		g.fileWriter.InitFile()
 	}
 
-	err = c.Visit(url)
-	c.Wait()
+	err = c.Visit(grawlUrl)
 	if err != nil {
-		fmt.Printf("Could not visit url: %v\n", err)
+		fmt.Printf("Could not visit grawlUrl: %v\n", err)
 		return
 	}
+	c.Wait()
 
 	g.printSummary()
 }
 
-func (g *Grawler) visit(c *colly.Collector, r *colly.Request, url string, foundOnUrl string) {
-	url = strings.Trim(url, " ")
-	visited, err := c.HasVisited(url)
-	if err != nil || !visited {
-		g.runningRequests.AddFoundUrl(url, foundOnUrl)
+func (g *Grawler) onRequest(r *colly.Request) {
+	requestUrl := r.URL.String()
+
+	if g.headerAuth != "" {
+		r.Headers.Set("Authorization", g.headerAuth)
 	}
 
-	fmt.Println("Visit: ", r.ID, r.URL)
+	foundOnUrl := g.runningRequests.GetFoundUrl(requestUrl)
+	requestResult := NewResult(r.ID, requestUrl, foundOnUrl, g.responseErrorRanges)
+
+	g.runningRequests.Store(r.ID, requestResult, requestUrl)
+	g.requestCount++
+}
+
+func (g *Grawler) onResponse(r *colly.Response) {
+	g.responseCount++
+
+	reqResult, ok := g.runningRequests.Load(r.Request.ID)
+	if !ok {
+		fmt.Printf("No start time found for %s\n", r.Request.URL)
+	}
+
+	duration := time.Since(reqResult.GetRequestAt())
+	g.totalDuration += duration
+
+	reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
+	g.printResult(reqResult)
+	g.checkStopOnError(reqResult)
+}
+
+func (g *Grawler) onRedirect(req *http.Request, via []*http.Request) error {
+	runningReq, ok := g.runningRequests.LoadByUrl(via[0].URL.String())
+	atomic.AddUint32(&g.redirections, 1)
+	if ok {
+		fmt.Printf("Redirecting to %s from %s. ID: %d\n", req.URL, via[0].URL, runningReq.id)
+	} else {
+		return fmt.Errorf("Could not find initial url of redirection to %s from %s\n", req.URL, via[0].URL)
+	}
+	return nil
+}
+
+func (g *Grawler) onError(r *colly.Response, err error) {
+	g.errorCount++
+
+	// Normal error on aborted binary files like images. Result is printed in OnResponseHeaders
+	if err != nil && errors.Is(err, colly.ErrAbortedAfterHeaders) {
+		return
+	}
+
+	//
+	// Remove request if this url is filtered by colly
+	//
+	if r.StatusCode == 0 {
+		fmt.Println("Error", r.Request.URL, err)
+		g.runningRequests.Delete(r.Request.ID)
+		return
+	}
+
+	reqResult, ok := g.runningRequests.Load(r.Request.ID)
+	if ok {
+		duration := time.Since(reqResult.GetRequestAt())
+		reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
+		g.totalDuration += duration
+		g.printResult(reqResult)
+		g.checkStopOnError(reqResult)
+	} else {
+		fmt.Println("Request data not found", r.Request.URL)
+	}
+}
+
+func (g *Grawler) visit(c *colly.Collector, r *colly.Request, url string, foundOnUrl string) {
+	g.visitMutex.Lock()
+
+	url = strings.Trim(url, " ")
+	visited, err := c.HasVisited(url)
+	if visited {
+		//fmt.Println("Visited", url)
+		g.visitMutex.Unlock()
+		return
+	}
+	if err != nil {
+		fmt.Println("Could not check if url has been visited: ", url)
+	}
+
+	hasFoundUrl := g.runningRequests.HasFoundUrl(url)
+	if hasFoundUrl {
+		g.visitMutex.Unlock()
+		return
+	}
+
+	g.runningRequests.AddFoundUrl(url, foundOnUrl)
+	//fmt.Println("Visit:", url)
 	_ = r.Visit(url)
+	g.visitMutex.Unlock()
 }
 
 func (g *Grawler) printSummary() {
@@ -351,9 +377,7 @@ func (g *Grawler) printResult(result *Result) {
 }
 
 func (g *Grawler) updateStatusBar(result *Result) {
-
 	//fmt.Printf("queue %d", g.collector.)
-
 	//line := "cool: " + result.GetPrintRow()
 	//
 	//printFixedBottomLine(line)

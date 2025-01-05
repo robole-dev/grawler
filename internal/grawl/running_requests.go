@@ -98,3 +98,10 @@ func (rr *RunningRequests) GetFoundUrl(url string) string {
 	}
 	return ""
 }
+
+func (rr *RunningRequests) HasFoundUrl(url string) bool {
+	rr.Lock()
+	_, ok := rr.foundUrlOnUrl[url]
+	rr.Unlock()
+	return ok
+}
