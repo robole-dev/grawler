@@ -96,7 +96,7 @@ tasks:
 
     install:
         cmds:
-            - go install .
+            - "CGO_ENABLED=0 go install -ldflags='-s -w' ."
 
     update:
         cmds:
