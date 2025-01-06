@@ -143,9 +143,11 @@ func (g *Grawler) Grawl(grawlUrl string) {
 		g.headerAuth = fmt.Sprintf("Basic %s", auth)
 	}
 
+	c.SetRedirectHandler(g.onRedirect)
 	c.OnRequest(g.onRequest)
 	c.OnResponse(g.onResponse)
 	c.OnError(g.onError)
+	c.OnResponseHeaders(g.onResponseHeaders)
 
 	if g.flags.FlagSitemap {
 		c.OnXML("//urlset/grawlUrl/loc", func(e *colly.XMLElement) {
@@ -193,31 +195,7 @@ func (g *Grawler) Grawl(grawlUrl string) {
 			scriptSrc := e.Attr("src")
 			g.visit(c, e.Request, e.Request.AbsoluteURL(scriptSrc), e.Request.URL.String())
 		})
-
-		c.OnResponseHeaders(func(r *colly.Response) {
-			if isHtmlResponse(r) || isXmlResponse(r) {
-				return
-			}
-
-			//
-			// Abort downloading all non-xml and non-html contents
-			//
-			r.Request.Abort()
-			reqResult, ok := g.runningRequests.Load(r.Request.ID)
-			if ok {
-				duration := time.Since(reqResult.GetRequestAt())
-				g.totalDuration += duration
-
-				reqResult.UpdateOnResponse(r, g.responseCount, duration, nil, g.requestCount)
-				g.printResult(reqResult)
-				g.checkStopOnError(reqResult)
-			} else {
-				fmt.Println("Request data not found", r.Request.URL)
-			}
-		})
 	}
-
-	c.SetRedirectHandler(g.onRedirect)
 
 	if g.flags.FlagOutputFilename != "" {
 		g.fileWriter = NewFileWriter(g.flags.FlagOutputFilename)
@@ -468,5 +446,27 @@ func (g *Grawler) promptResume() interface{} {
 		default:
 			//fmt.Println(str)
 		}
+	}
+}
+
+func (g *Grawler) onResponseHeaders(r *colly.Response) {
+	if isHtmlResponse(r) || isXmlResponse(r) {
+		return
+	}
+
+	//
+	// Abort downloading all non-xml and non-html contents
+	//
+	r.Request.Abort()
+	reqResult, ok := g.runningRequests.Load(r.Request.ID)
+	if ok {
+		duration := time.Since(reqResult.GetRequestAt())
+		g.totalDuration += duration
+
+		reqResult.UpdateOnResponse(r, g.responseCount, duration, nil, g.requestCount)
+		g.printResult(reqResult)
+		g.checkStopOnError(reqResult)
+	} else {
+		fmt.Println("Request data not found", r.Request.URL)
 	}
 }
