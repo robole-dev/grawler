@@ -1,6 +1,7 @@
 package grawl
 
 import (
+	"fmt"
 	"github.com/gocolly/colly/v2"
 	"net/http"
 	"strconv"
@@ -9,7 +10,7 @@ import (
 
 type Result struct {
 	id                  uint32
-	Index               int
+	Index               uint32
 	initialRequestUrl   string
 	url                 string
 	urlHost             string
@@ -28,6 +29,7 @@ type Result struct {
 	contentType         string
 	depth               int
 	httpErrorCodeRanges *responseCodeRanges
+	requestCount        uint32
 }
 
 func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *responseCodeRanges) *Result {
@@ -39,6 +41,7 @@ func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *respon
 		foundOnUrl:          foundOnUrl,
 		requestAt:           time.Now(),
 		httpErrorCodeRanges: httpErrorRanges,
+		requestCount:        0,
 	}
 }
 
@@ -50,7 +53,13 @@ func (r *Result) IsRedirected() bool {
 	return r.urlRedirectedFrom != ""
 }
 
-func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration time.Duration, err *error) {
+func (r *Result) UpdateOnResponse(
+	response *colly.Response,
+	index uint32,
+	duration time.Duration,
+	err *error,
+	requestCount uint32,
+) {
 
 	//requestId := response.Request.ID
 	//initialRequestUrl := response.Request.Ctx.Get(ctxOrgUrl)
@@ -71,6 +80,7 @@ func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration 
 		r.status += " (Redirected)"
 	}
 
+	r.requestCount = requestCount
 	r.duration = duration
 	r.Index = index
 	r.urlPath = response.Request.URL.Path
@@ -93,6 +103,8 @@ func (r *Result) UpdateOnResponse(response *colly.Response, index int, duration 
 func (r *Result) GetPrintRow() string {
 	row := ""
 	row += "[" + r.responseAt.Format(DateFormat) + "]"
+	row += " "
+	row += fmt.Sprintf("%d/%d", r.Index, r.requestCount)
 	row += " "
 	row += strconv.Itoa(r.statusCode)
 	row += " "

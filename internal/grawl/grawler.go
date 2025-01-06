@@ -28,7 +28,7 @@ type Grawler struct {
 	flags               Flags
 	headerAuth          string
 	requestCount        uint32
-	responseCount       int
+	responseCount       uint32
 	errorCount          uint32
 	totalDuration       time.Duration
 	runningRequests     *RunningRequests
@@ -208,7 +208,7 @@ func (g *Grawler) Grawl(grawlUrl string) {
 				duration := time.Since(reqResult.GetRequestAt())
 				g.totalDuration += duration
 
-				reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
+				reqResult.UpdateOnResponse(r, g.responseCount, duration, nil, g.requestCount)
 				g.printResult(reqResult)
 				g.checkStopOnError(reqResult)
 			} else {
@@ -259,7 +259,7 @@ func (g *Grawler) onResponse(r *colly.Response) {
 	duration := time.Since(reqResult.GetRequestAt())
 	g.totalDuration += duration
 
-	reqResult.UpdateOnResponse(r, g.responseCount, duration, nil)
+	reqResult.UpdateOnResponse(r, g.responseCount, duration, nil, g.requestCount)
 	g.printResult(reqResult)
 	g.checkStopOnError(reqResult)
 }
@@ -277,6 +277,7 @@ func (g *Grawler) onRedirect(req *http.Request, via []*http.Request) error {
 
 func (g *Grawler) onError(r *colly.Response, err error) {
 	g.errorCount++
+	g.responseCount++
 
 	// Normal error on aborted binary files like images. Result is printed in OnResponseHeaders
 	if err != nil && errors.Is(err, colly.ErrAbortedAfterHeaders) {
@@ -295,7 +296,7 @@ func (g *Grawler) onError(r *colly.Response, err error) {
 	reqResult, ok := g.runningRequests.Load(r.Request.ID)
 	if ok {
 		duration := time.Since(reqResult.GetRequestAt())
-		reqResult.UpdateOnResponse(r, g.responseCount, duration, &err)
+		reqResult.UpdateOnResponse(r, g.responseCount, duration, &err, g.requestCount)
 		g.totalDuration += duration
 		g.printResult(reqResult)
 		g.checkStopOnError(reqResult)
