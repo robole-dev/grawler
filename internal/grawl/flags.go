@@ -12,6 +12,7 @@ type Flags struct {
 	FlagSitemap              bool
 	FlagAllowedDomains       []string
 	FlagRespectRobotsTxt     bool
+	FlagRespectNofollow      bool
 	FlagPath                 string
 	FlagCheckAll             bool
 	FlagRequestTimeout       float32

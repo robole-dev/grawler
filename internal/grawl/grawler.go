@@ -163,6 +163,11 @@ func (g *Grawler) Grawl(grawlUrl string) {
 			if strings.HasPrefix(link, "tel:") {
 				return
 			}
+			if g.flags.FlagRespectNofollow {
+				if strings.ToLower(e.Attr("rel")) == "nofollow" {
+					return
+				}
+			}
 
 			g.visit(c, e.Request, e.Request.AbsoluteURL(link), e.Request.URL.String())
 		})

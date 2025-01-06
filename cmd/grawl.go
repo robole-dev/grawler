@@ -37,6 +37,7 @@ const (
 	flagNameSitemap              = "sitemap"
 	flagNameAllowedDomains       = "allowed-domains"
 	flagNameRespectRobotsTxt     = "respect-robots-txt"
+	flagNameRespectNofollow      = "respect-nofollow"
 	flagNamePath                 = "path"
 	flagNameCheckAll             = "check-all"
 	flagNameRequestTimeout       = "request-timeout"
@@ -80,6 +81,9 @@ func init() {
 	grawlCmd.Flags().BoolVar(&grawlFlags.FlagRespectRobotsTxt, flagNameRespectRobotsTxt, false, "Respect the robots.txt file.")
 	bindViperFlag(flagNameRespectRobotsTxt)
 
+	grawlCmd.Flags().BoolVar(&grawlFlags.FlagRespectNofollow, flagNameRespectNofollow, false, "Respect the attribute 'rel=\"nofollow\"'")
+	bindViperFlag(flagNameRespectNofollow)
+
 	grawlCmd.Flags().StringVar(&grawlFlags.FlagPath, flagNamePath, "", "Restrict the crawlings on a certain url path.")
 	bindViperFlag(flagNamePath)
 
@@ -119,6 +123,7 @@ func warmItUp(url string) {
 	grawlFlags.FlagSitemap = viper.GetBool(viperGrawlPrefix + "." + flagNameSitemap)
 	grawlFlags.FlagAllowedDomains = viper.GetStringSlice(viperGrawlPrefix + "." + flagNameAllowedDomains)
 	grawlFlags.FlagRespectRobotsTxt = viper.GetBool(viperGrawlPrefix + "." + flagNameRespectRobotsTxt)
+	grawlFlags.FlagRespectNofollow = viper.GetBool(viperGrawlPrefix + "." + flagNameRespectNofollow)
 	grawlFlags.FlagPath = viper.GetString(viperGrawlPrefix + "." + flagNamePath)
 	grawlFlags.FlagCheckAll = viper.GetBool(viperGrawlPrefix + "." + flagNameCheckAll)
 	grawlFlags.FlagRequestTimeout = cast.ToFloat32(viper.Get(viperGrawlPrefix + "." + flagNameRequestTimeout))
@@ -144,6 +149,7 @@ func warmItUp(url string) {
 		fmt.Println("Sitemap:", grawlFlags.FlagSitemap)
 		fmt.Println("AllowedDomains:", grawlFlags.FlagAllowedDomains)
 		fmt.Println("RespectRobotsTxt:", grawlFlags.FlagRespectRobotsTxt)
+		fmt.Println("RespectNofollow:", grawlFlags.FlagRespectNofollow)
 		fmt.Println("Path:", grawlFlags.FlagPath)
 		fmt.Println("CheckAll:", grawlFlags.FlagCheckAll)
 		fmt.Println("RequestTimeout:", grawlFlags.FlagRequestTimeout)
