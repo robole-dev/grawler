@@ -37,6 +37,7 @@ func init() {
 
 	rootCmd.AddCommand(grawlCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(validateCmd)
 	rootCmd.Flags().BoolVarP(&flagVersion, "version", "v", false, "Show version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config", "", "Manually set the path to your config file.")
 	rootCmd.PersistentFlags().BoolVar(&flagConfigInfo, "config-info", false, "Outputs the current configuration values.")

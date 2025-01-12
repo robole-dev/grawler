@@ -2,6 +2,7 @@ package grawl
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/gocolly/colly/v2"
 	"net/http"
 	"strconv"
@@ -28,12 +29,12 @@ type Result struct {
 	foundOnUrl          string
 	contentType         string
 	depth               int
-	httpErrorCodeRanges *responseCodeRanges
+	httpErrorCodeRanges *ResponseCodeRanges
 	requestCount        uint32
 	updatedAtResponse   bool
 }
 
-func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *responseCodeRanges) *Result {
+func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *ResponseCodeRanges) *Result {
 	//fmt.Println("found on", foundOnUrl)
 	return &Result{
 		id:                  id,
@@ -44,6 +45,10 @@ func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *respon
 		requestCount:        0,
 		updatedAtResponse:   false,
 	}
+}
+
+func (r *Result) Id() uint32 {
+	return r.id
 }
 
 func (r *Result) GetRequestAt() time.Time {
@@ -143,4 +148,14 @@ func (r *Result) GetDuration() time.Duration {
 		return 0
 	}
 	return r.responseAt.Sub(r.requestAt)
+}
+
+func (r *Result) PrintRowColored() {
+	if r.IsRedirected() {
+		color.Yellow(r.GetPrintRow())
+	} else if r.HasError() {
+		color.Red(r.GetPrintRow())
+	} else {
+		color.Green(r.GetPrintRow())
+	}
 }

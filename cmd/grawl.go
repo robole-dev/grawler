@@ -49,64 +49,64 @@ const (
 
 func init() {
 	grawlCmd.Flags().Int64VarP(&grawlFlags.FlagDelay, flagNameDelay, "d", 0, "Delay between requests in milliseconds. (default 0)")
-	bindViperFlag(flagNameDelay)
+	bindGrawlViperFlag(flagNameDelay)
 
 	grawlCmd.Flags().Int64Var(&grawlFlags.FlagRandomDelay, flagNameRandomDelay, 0, "Max random delay between requests in milliseconds. (default 0 for no random delay)")
-	bindViperFlag(flagNameRandomDelay)
+	bindGrawlViperFlag(flagNameRandomDelay)
 
 	grawlCmd.Flags().IntVarP(&grawlFlags.FlagMaxDepth, flagNameMaxDepth, "m", 0, "Set it to 0 for infinite recursion. (default 0)")
-	bindViperFlag(flagNameMaxDepth)
+	bindGrawlViperFlag(flagNameMaxDepth)
 
 	grawlCmd.Flags().StringVarP(&grawlFlags.FlagOutputFilename, flagNameOutputFilepath, "o", "", "Write statistic data of each request to this file.")
-	bindViperFlag(flagNameOutputFilepath)
+	bindGrawlViperFlag(flagNameOutputFilepath)
 
 	grawlCmd.Flags().IntVarP(&grawlFlags.FlagParallel, flagNameParallel, "l", 1, "Number of parallel requests.")
-	bindViperFlag(flagNameParallel)
+	bindGrawlViperFlag(flagNameParallel)
 
 	grawlCmd.Flags().StringVarP(&grawlFlags.FlagUsername, flagNameUsername, "u", "", "Use this for HTTP Basic Authentication. If you omit the password-flag a prompt will ask for the password.")
-	bindViperFlag(flagNameUsername)
+	bindGrawlViperFlag(flagNameUsername)
 
 	grawlCmd.Flags().StringVarP(&grawlFlags.FlagPassword, flagNamePassword, "p", "", "Use this for HTTP Basic Authentication.")
-	bindViperFlag(flagNamePassword)
+	bindGrawlViperFlag(flagNamePassword)
 
 	grawlCmd.Flags().StringVar(&grawlFlags.FlagUserAgent, flagNameUserAgent, "grawler", "Sets the user agent.")
-	bindViperFlag(flagNameUserAgent)
+	bindGrawlViperFlag(flagNameUserAgent)
 
 	grawlCmd.Flags().BoolVarP(&grawlFlags.FlagSitemap, flagNameSitemap, "s", false, "Checks the sitemap. If this is flag is set the url parameter has to be the url to the sitemap.xml.")
-	bindViperFlag(flagNameSitemap)
+	bindGrawlViperFlag(flagNameSitemap)
 
 	grawlCmd.Flags().StringSliceVarP(&grawlFlags.FlagAllowedDomains, flagNameAllowedDomains, "a", nil, "A comma separated list of allowed domains to be crawled. The domain of the given url is always allowed.")
-	bindViperFlag(flagNameAllowedDomains)
+	bindGrawlViperFlag(flagNameAllowedDomains)
 
 	grawlCmd.Flags().BoolVar(&grawlFlags.FlagRespectRobotsTxt, flagNameRespectRobotsTxt, false, "Respect the robots.txt file.")
-	bindViperFlag(flagNameRespectRobotsTxt)
+	bindGrawlViperFlag(flagNameRespectRobotsTxt)
 
 	grawlCmd.Flags().BoolVar(&grawlFlags.FlagRespectNofollow, flagNameRespectNofollow, false, "Respect the attribute 'rel=\"nofollow\"'")
-	bindViperFlag(flagNameRespectNofollow)
+	bindGrawlViperFlag(flagNameRespectNofollow)
 
 	grawlCmd.Flags().StringVar(&grawlFlags.FlagPath, flagNamePath, "", "Restrict the crawlings on a certain url path.")
-	bindViperFlag(flagNamePath)
+	bindGrawlViperFlag(flagNamePath)
 
 	grawlCmd.Flags().BoolVarP(&grawlFlags.FlagCheckAll, flagNameCheckAll, "", false, "In addtion to html and xml-urls, also check image, js and css-urls, among others.")
-	bindViperFlag(flagNameCheckAll)
+	bindGrawlViperFlag(flagNameCheckAll)
 
 	grawlCmd.Flags().Float32Var(&grawlFlags.FlagRequestTimeout, flagNameRequestTimeout, 10, "Timeout in seconds to wait for a response.")
-	bindViperFlag(flagNameRequestTimeout)
+	bindGrawlViperFlag(flagNameRequestTimeout)
 
 	grawlCmd.Flags().StringSliceVar(&grawlFlags.FlagURLFilters, flagNameUrlFilters, nil, "Only visit urls that match the regular expressions given here.")
-	bindViperFlag(flagNameUrlFilters)
+	bindGrawlViperFlag(flagNameUrlFilters)
 
 	grawlCmd.Flags().StringSliceVar(&grawlFlags.FlagDisallowedURLFilters, flagNameDisallowedURLFilters, nil, "Do not visit urls that match the regular expressions given here.")
-	bindViperFlag(flagNameDisallowedURLFilters)
+	bindGrawlViperFlag(flagNameDisallowedURLFilters)
 
 	grawlCmd.Flags().BoolVar(&grawlFlags.FlagStopOnError, flagNameStopOnError, false, "The grawling stops on errors.")
-	bindViperFlag(flagNameStopOnError)
+	bindGrawlViperFlag(flagNameStopOnError)
 
 	grawlCmd.Flags().BoolVar(&grawlFlags.FlagPauseOnError, flagNamePauseOnError, false, "The grawling pauses on errors and you have the option to cancel, skip or try again.")
-	bindViperFlag(flagNamePauseOnError)
+	bindGrawlViperFlag(flagNamePauseOnError)
 
 	//grawlCmd.Flags().StringSliceVar(&grawlFlags.FlagResponseErrorCodes, flagNameResponseErrorCodes, []string{"400-599"}, "The http error codes that are evaluated as errors. You can define multiple single vales or multiple value ranges.")
-	//bindViperFlag(flagNameResponseErrorCodes)
+	//bindGrawlViperFlag(flagNameResponseErrorCodes)
 }
 
 func warmItUp(url string) {
@@ -164,7 +164,7 @@ func warmItUp(url string) {
 	grawler.Grawl(url)
 }
 
-func bindViperFlag(flagLookup string) {
+func bindGrawlViperFlag(flagLookup string) {
 	key := viperGrawlPrefix + "." + flagLookup
 	err := viper.BindPFlag(key, grawlCmd.Flags().Lookup(flagLookup))
 	if err != nil {

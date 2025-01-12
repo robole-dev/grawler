@@ -137,7 +137,7 @@ func StatusAbbreviation(code int) string {
 	}
 }
 
-func isXmlResponse(resp *colly.Response) bool {
+func IsXmlResponse(resp *colly.Response) bool {
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
 	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
 	isXmlContentType := strings.Contains(contentType, "xml")
@@ -146,7 +146,7 @@ func isXmlResponse(resp *colly.Response) bool {
 	return !isHtmlContentType && (isXMLFile || isXmlContentType)
 }
 
-func isHtmlResponse(resp *colly.Response) bool {
+func IsHtmlResponse(resp *colly.Response) bool {
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
 	return strings.Contains(contentType, "html")
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"github.com/gocolly/colly/v2"
 	"github.com/manifoldco/promptui"
 	"net/http"
@@ -33,15 +32,15 @@ type Grawler struct {
 	totalDuration       time.Duration
 	runningRequests     *RunningRequests
 	fileWriter          *FileWriter
-	responseErrorRanges *responseCodeRanges
+	responseErrorRanges *ResponseCodeRanges
 	collector           *colly.Collector
 	redirections        uint32
 	visitMutex          sync.Mutex
 }
 
 func NewGrawler(flags Flags) *Grawler {
-	//errorCodeRanges, err := newResponseCodeRanges(flags.FlagResponseErrorCodes)
-	errorCodeRanges, err := newResponseCodeRanges([]string{})
+	//errorCodeRanges, err := NewResponseCodeRanges(flags.FlagResponseErrorCodes)
+	errorCodeRanges, err := NewResponseCodeRanges([]string{})
 	if err != nil {
 		panic(err)
 	}
@@ -51,10 +50,10 @@ func NewGrawler(flags Flags) *Grawler {
 		requestCount:        0,
 		responseCount:       0,
 		errorCount:          0,
+		redirections:        0,
 		totalDuration:       time.Duration(0),
 		runningRequests:     NewRunningRequests(),
 		responseErrorRanges: errorCodeRanges,
-		redirections:        0,
 	}
 }
 
@@ -358,34 +357,11 @@ func (g *Grawler) printSummary() {
 }
 
 func (g *Grawler) printResult(result *Result) {
-	if result.IsRedirected() {
-		color.Yellow(result.GetPrintRow())
-	} else if result.HasError() {
-		color.Red(result.GetPrintRow())
-	} else {
-		color.Green(result.GetPrintRow())
-	}
+	result.PrintRowColored()
 
 	if g.fileWriter != nil {
 		g.fileWriter.WriteResultLine(result)
 	}
-
-	g.updateStatusBar(result)
-}
-
-func (g *Grawler) updateStatusBar(result *Result) {
-	//fmt.Printf("queue %d", g.collector.)
-	//line := "cool: " + result.GetPrintRow()
-	//
-	//printFixedBottomLine(line)
-}
-
-func printFixedBottomLine(line string) {
-	// ANSI Code um den Cursor auf die letzte Zeile zu setzen
-	fmt.Printf("\033[s")              // Speichere die aktuelle Cursor-Position
-	fmt.Printf("\033[H\033[2J")       // Lösche den Bildschirm
-	fmt.Printf("\033[999;1H%s", line) // Setze Cursor an die letzte Zeile und drucke die Zeile
-	fmt.Printf("\033[u")              // Stelle die gespeicherte Cursor-Position wieder her
 }
 
 func (g *Grawler) promptPassword() (string, error) {
@@ -424,7 +400,7 @@ func (g *Grawler) checkStopOnError(result *Result) {
 
 	if g.flags.FlagPauseOnError {
 		fmt.Println("Pause grawling after error.")
-		prompt := g.promptResume()
+		prompt := PromptResume()
 		switch prompt {
 		case "a":
 			fmt.Println("Grawling aborted.")
@@ -442,7 +418,7 @@ func (g *Grawler) checkStopOnError(result *Result) {
 	}
 }
 
-func (g *Grawler) promptResume() interface{} {
+func PromptResume() interface{} {
 	str := "Please choose: [a]bort the grawling or [r]etry the url or [s]kip the url."
 	for {
 		fmt.Println(str)
@@ -463,7 +439,7 @@ func (g *Grawler) promptResume() interface{} {
 }
 
 func (g *Grawler) onResponseHeaders(r *colly.Response) {
-	if isHtmlResponse(r) || isXmlResponse(r) {
+	if IsHtmlResponse(r) || IsXmlResponse(r) {
 		return
 	}
 

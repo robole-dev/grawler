@@ -7,16 +7,16 @@ import (
 	"strings"
 )
 
-type responseCodeRange struct {
+type ResponseCodeRange struct {
 	minCode int
 	maxCode int
 }
 
-type responseCodeRanges struct {
-	ranges []responseCodeRange
+type ResponseCodeRanges struct {
+	ranges []ResponseCodeRange
 }
 
-func (r *responseCodeRanges) IsError(responseCode int) bool {
+func (r *ResponseCodeRanges) IsError(responseCode int) bool {
 	for _, errorCodeRange := range r.ranges {
 		if responseCode >= errorCodeRange.minCode && responseCode <= errorCodeRange.maxCode {
 			return true
@@ -25,8 +25,8 @@ func (r *responseCodeRanges) IsError(responseCode int) bool {
 	return false
 }
 
-func newResponseCodeRanges(responseCodeFlags []string) (*responseCodeRanges, error) {
-	var ranges = responseCodeRanges{}
+func NewResponseCodeRanges(responseCodeFlags []string) (*ResponseCodeRanges, error) {
+	var ranges = ResponseCodeRanges{}
 
 	regexRange := regexp.MustCompile(`(\d+)\s*-\s*(\d+)`)
 
@@ -40,7 +40,7 @@ func newResponseCodeRanges(responseCodeFlags []string) (*responseCodeRanges, err
 				return nil, fmt.Errorf("could not parse http-error-codes: %s", responseCodeFlag)
 			}
 
-			resSingle := responseCodeRange{
+			resSingle := ResponseCodeRange{
 				minCode: val,
 				maxCode: val,
 			}
@@ -59,7 +59,7 @@ func newResponseCodeRanges(responseCodeFlags []string) (*responseCodeRanges, err
 			return nil, err
 		}
 
-		res := responseCodeRange{
+		res := ResponseCodeRange{
 			minCode: minVal,
 			maxCode: maxVal,
 		}
@@ -68,7 +68,7 @@ func newResponseCodeRanges(responseCodeFlags []string) (*responseCodeRanges, err
 	}
 
 	if len(ranges.ranges) <= 0 {
-		ranges.ranges = append(ranges.ranges, responseCodeRange{minCode: 400, maxCode: 599})
+		ranges.ranges = append(ranges.ranges, ResponseCodeRange{minCode: 400, maxCode: 599})
 	}
 
 	return &ranges, nil
