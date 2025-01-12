@@ -73,6 +73,7 @@ func (g *Grawler) Grawl(grawlUrl string) {
 	c.MaxDepth = g.flags.FlagMaxDepth
 	c.Async = true
 	c.SetRequestTimeout(time.Duration(g.flags.FlagRequestTimeout * float32(time.Second)))
+	c.WithTransport(g)
 
 	if g.flags.FlagPath != "" {
 		regexPatternPath := fmt.Sprintf(
@@ -212,6 +213,20 @@ func (g *Grawler) Grawl(grawlUrl string) {
 	g.printSummary()
 }
 
+// RoundTrip implemnts the RoundTripper interface. Needed to measure roundtrip duration
+func (g *Grawler) RoundTrip(req *http.Request) (res *http.Response, err error) {
+	reqResult, ok := g.runningRequests.LoadByUrl(req.URL.String())
+	if !ok {
+		fmt.Printf("No running request found for %s\n", req.URL)
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	reqResult.UpdateOnRoundTripStart(time.Now())
+	defer func() {
+		reqResult.UpdateOnRoundTripEnd(time.Now())
+	}()
+	return http.DefaultTransport.RoundTrip(req)
+}
+
 func (g *Grawler) onRequest(r *colly.Request) {
 	requestUrl := r.URL.String()
 
@@ -234,10 +249,9 @@ func (g *Grawler) onResponse(r *colly.Response) {
 		fmt.Printf("No start time found for %s\n", r.Request.URL)
 	}
 
-	duration := time.Since(reqResult.GetRequestAt())
-	g.totalDuration += duration
+	reqResult.UpdateOnResponse(r, g.responseCount, nil, g.requestCount)
+	g.totalDuration += reqResult.GetDuration()
 
-	reqResult.UpdateOnResponse(r, g.responseCount, duration, nil, g.requestCount)
 	g.printResult(reqResult)
 	g.checkStopOnError(reqResult)
 }
@@ -273,9 +287,8 @@ func (g *Grawler) onError(r *colly.Response, err error) {
 
 	reqResult, ok := g.runningRequests.Load(r.Request.ID)
 	if ok {
-		duration := time.Since(reqResult.GetRequestAt())
-		reqResult.UpdateOnResponse(r, g.responseCount, duration, &err, g.requestCount)
-		g.totalDuration += duration
+		reqResult.UpdateOnResponse(r, g.responseCount, &err, g.requestCount)
+		g.totalDuration += reqResult.GetDuration()
 		g.printResult(reqResult)
 		g.checkStopOnError(reqResult)
 	} else {
@@ -315,8 +328,8 @@ func (g *Grawler) printSummary() {
 	returnCodes := map[int]int{}
 	returnErrors := 0
 	for _, result := range *g.runningRequests.GetValues() {
-		durationMin = min(durationMin, result.duration)
-		durationMax = max(durationMax, result.duration)
+		durationMin = min(durationMin, result.GetDuration())
+		durationMax = max(durationMax, result.GetDuration())
 		if result.statusCode > 0 {
 			returnCodes[result.statusCode]++
 		} else {
@@ -460,10 +473,8 @@ func (g *Grawler) onResponseHeaders(r *colly.Response) {
 	r.Request.Abort()
 	reqResult, ok := g.runningRequests.Load(r.Request.ID)
 	if ok {
-		duration := time.Since(reqResult.GetRequestAt())
-		g.totalDuration += duration
-
-		reqResult.UpdateOnResponse(r, g.responseCount, duration, nil, g.requestCount)
+		reqResult.UpdateOnResponse(r, g.responseCount, nil, g.requestCount)
+		g.totalDuration += reqResult.GetDuration()
 		g.printResult(reqResult)
 		g.checkStopOnError(reqResult)
 	} else {

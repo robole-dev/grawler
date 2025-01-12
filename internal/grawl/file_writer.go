@@ -77,7 +77,7 @@ func (f *FileWriter) getCsvRow(r *Result) []string {
 
 		r.foundOnUrl,
 		r.contentType,
-		strconv.FormatInt(r.duration.Milliseconds(), 10),
+		strconv.FormatInt(r.GetDuration().Milliseconds(), 10),
 		strconv.Itoa(r.depth),
 		r.urlRedirectedFrom,
 

@@ -9,16 +9,16 @@ import (
 )
 
 type Result struct {
-	id                  uint32
-	Index               uint32
-	initialRequestUrl   string
-	url                 string
-	urlHost             string
-	urlPath             string
-	urlParmeters        string
-	urlFragment         string
-	urlRedirectedFrom   string
-	duration            time.Duration
+	id                uint32
+	Index             uint32
+	initialRequestUrl string
+	url               string
+	urlHost           string
+	urlPath           string
+	urlParmeters      string
+	urlFragment       string
+	urlRedirectedFrom string
+	//duration            time.Duration
 	requestAt           time.Time
 	responseAt          time.Time
 	statusCode          int
@@ -30,6 +30,7 @@ type Result struct {
 	depth               int
 	httpErrorCodeRanges *responseCodeRanges
 	requestCount        uint32
+	updatedAtResponse   bool
 }
 
 func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *responseCodeRanges) *Result {
@@ -39,9 +40,9 @@ func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *respon
 		initialRequestUrl:   url,
 		url:                 url,
 		foundOnUrl:          foundOnUrl,
-		requestAt:           time.Now(),
 		httpErrorCodeRanges: httpErrorRanges,
 		requestCount:        0,
+		updatedAtResponse:   false,
 	}
 }
 
@@ -53,10 +54,17 @@ func (r *Result) IsRedirected() bool {
 	return r.urlRedirectedFrom != ""
 }
 
+func (r *Result) UpdateOnRoundTripStart(requestTime time.Time) {
+	r.requestAt = requestTime
+}
+
+func (r *Result) UpdateOnRoundTripEnd(responseTime time.Time) {
+	r.responseAt = responseTime
+}
+
 func (r *Result) UpdateOnResponse(
 	response *colly.Response,
 	index uint32,
-	duration time.Duration,
 	err *error,
 	requestCount uint32,
 ) {
@@ -81,19 +89,19 @@ func (r *Result) UpdateOnResponse(
 	}
 
 	r.requestCount = requestCount
-	r.duration = duration
+	//r.duration = duration
 	r.Index = index
 	r.urlPath = response.Request.URL.Path
 	r.urlHost = response.Request.URL.Host
 	r.urlParmeters = response.Request.URL.RawQuery
 	r.urlFragment = response.Request.URL.RawFragment
 	r.statusCode = response.StatusCode
-	r.responseAt = time.Now()
 	r.depth = response.Request.Depth
 
 	//fmt.Println("CT", r.contentType, " - ", response.Headers.Get("Content-Type"))
 
 	r.contentType = response.Headers.Get("Content-Type")
+	r.updatedAtResponse = true
 
 	if err != nil {
 		r.error = *err
@@ -109,6 +117,8 @@ func (r *Result) GetPrintRow() string {
 	row += strconv.Itoa(r.statusCode)
 	row += " "
 	row += StatusAbbreviation(r.statusCode)
+	row += " "
+	row += fmt.Sprintf("%dms", r.GetDuration().Milliseconds())
 	row += " - "
 	row += r.url
 
@@ -126,4 +136,11 @@ func (r *Result) GetPrintRow() string {
 
 func (r *Result) HasError() bool {
 	return r.error != nil || r.httpErrorCodeRanges.IsError(r.statusCode)
+}
+
+func (r *Result) GetDuration() time.Duration {
+	if r.responseAt.IsZero() {
+		return 0
+	}
+	return r.responseAt.Sub(r.requestAt)
 }
