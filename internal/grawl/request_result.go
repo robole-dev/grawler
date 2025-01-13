@@ -34,6 +34,14 @@ type Result struct {
 	updatedAtResponse   bool
 }
 
+func (r *Result) Url() string {
+	return r.url
+}
+
+func (r *Result) Error() error {
+	return r.error
+}
+
 func NewResult(id uint32, url string, foundOnUrl string, httpErrorRanges *ResponseCodeRanges) *Result {
 	//fmt.Println("found on", foundOnUrl)
 	return &Result{

@@ -73,17 +73,17 @@ func (v *Validator) ValidateCsv(csvPath string) {
 	v.collector = colly.NewCollector()
 	v.collector.MaxDepth = 10
 	v.collector.Async = true
-	//v.collector.SetRequestTimeout(time.Duration(v.config.FlagRequestTimeout * float32(time.Second)))
+	v.collector.SetRequestTimeout(time.Duration(v.config.FlagRequestTimeout * float32(time.Second)))
 	v.collector.WithTransport(v)
 	limitingRule := &colly.LimitRule{
-		DomainGlob: "*",
-		//Parallelism: v.config.FlagParallel,
+		DomainGlob:  "*",
+		Parallelism: v.config.FlagParallel,
 	}
-	//if v.config.FlagRandomDelay > 0 {
-	//	limitingRule.RandomDelay = time.Duration(v.config.FlagRandomDelay) * time.Millisecond
-	//} else {
-	//	limitingRule.Delay = time.Duration(v.config.FlagDelay) * time.Millisecond
-	//}
+	if v.config.FlagRandomDelay > 0 {
+		limitingRule.RandomDelay = time.Duration(v.config.FlagRandomDelay) * time.Millisecond
+	} else {
+		limitingRule.Delay = time.Duration(v.config.FlagDelay) * time.Millisecond
+	}
 
 	v.collector.SetRedirectHandler(v.onRedirect)
 	v.collector.OnRequest(v.onRequest)
@@ -129,9 +129,6 @@ func (v *Validator) ValidateCsv(csvPath string) {
 func (v *Validator) RoundTrip(req *http.Request) (res *http.Response, err error) {
 	reqResult, ok := v.runningRequests.LoadByUrl(req.URL.String())
 	if !ok {
-		fmt.Printf("No running request found for %s\n", req.URL)
-		fmt.Printf("Urls: %v\n", v.runningRequests)
-		os.Exit(1)
 		return http.DefaultTransport.RoundTrip(req)
 	}
 	reqResult.UpdateOnRoundTripStart(time.Now())
@@ -249,32 +246,32 @@ func (v *Validator) checkStopOnError(result *grawl.Result) {
 		return
 	}
 
-	//if v.config.FlagStopOnError {
-	//	fmt.Println("Stop validating after error.")
-	//	if result.error != nil {
-	//		fmt.Printf("Validating error: %s\n", result.error.Error())
-	//	}
-	//	os.Exit(1)
-	//}
-	//
-	//if v.config.FlagPauseOnError {
-	//	fmt.Println("Pause validating after error.")
-	//	prompt := grawl.PromptResume()
-	//	switch prompt {
-	//	case "a":
-	//		fmt.Println("Validating aborted.")
-	//		os.Exit(1)
-	//	case "s":
-	//		fmt.Println("Url skipped.")
-	//		return
-	//	case "r":
-	//		fmt.Println("Retry url...")
-	//		allowRevisit := g.collector.AllowURLRevisit
-	//		v.collector.AllowURLRevisit = true
-	//		_ = v.collector.Visit(result.url)
-	//		v.collector.AllowURLRevisit = allowRevisit
-	//	}
-	//}
+	if v.config.FlagStopOnError {
+		fmt.Println("Stop validating after error.")
+		if result.Error() != nil {
+			fmt.Printf("Validating error: %s\n", result.Error().Error())
+		}
+		os.Exit(1)
+	}
+
+	if v.config.FlagPauseOnError {
+		fmt.Println("Pause validating after error.")
+		prompt := grawl.PromptResume()
+		switch prompt {
+		case "a":
+			fmt.Println("Validating aborted.")
+			os.Exit(1)
+		case "s":
+			fmt.Println("Url skipped.")
+			return
+		case "r":
+			fmt.Println("Retry url...")
+			allowRevisit := v.collector.AllowURLRevisit
+			v.collector.AllowURLRevisit = true
+			_ = v.collector.Visit(result.Url())
+			v.collector.AllowURLRevisit = allowRevisit
+		}
+	}
 }
 
 func (v *Validator) visit(valData *ValData) {

@@ -1,11 +1,17 @@
 package validates
 
 const (
-	ViperValidatePrefix = "validate"
-	FlagSkipRows        = "skip-rows"
-	FlagColUrl          = "col-url"
-	FlagColStatusCode   = "col-status-code"
-	FlagColContentType  = "col-content-type"
+	ViperValidatePrefix    = "validate"
+	FlagNameSkipRows       = "skip-rows"
+	FlagNameColUrl         = "col-url"
+	FlagNameColStatusCode  = "col-status-code"
+	FlagNameColContentType = "col-content-type"
+	FlagNameParallel       = "parallel"
+	FlagNameRandomDelay    = "random-delay"
+	FlagNameDelay          = "delay"
+	FlagNameRequestTimeout = "request-timeout"
+	FlagNameStopOnError    = "stop-on-error"
+	FlagNamePauseOnError   = "pause-on-error"
 )
 
 type Flags struct {
@@ -13,10 +19,10 @@ type Flags struct {
 	FlagColUrl         uint64
 	FlagColStatusCode  uint64
 	FlagColContentType uint64
-	//FlagParallel
-	//FlagRandomDelay
-	//FlagDelay
-	//FlagRequestTimeout
-	//FlagStopOnError
-	//FlagPauseOnError
+	FlagParallel       int
+	FlagRandomDelay    int64
+	FlagDelay          int64
+	FlagRequestTimeout float32
+	FlagStopOnError    bool
+	FlagPauseOnError   bool
 }
