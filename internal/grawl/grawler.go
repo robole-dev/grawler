@@ -116,7 +116,7 @@ func (g *Grawler) Grawl(grawlUrl string) {
 	c.IgnoreRobotsTxt = !g.flags.FlagRespectRobotsTxt
 	c.AllowURLRevisit = false
 	c.AllowedDomains = slices.Concat(c.AllowedDomains, g.flags.FlagAllowedDomains)
-	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Host)
+	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Hostname())
 
 	if len(g.flags.FlagURLFilters) > 0 {
 		c.URLFilters = append(c.URLFilters, regexp.MustCompile("^"+grawlUrl+"$"))
