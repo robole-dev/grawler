@@ -26,15 +26,15 @@ const (
 type Grawler struct {
 	flags               Flags
 	headerAuth          string
-	requestCount        uint32
-	responseCount       uint32
-	errorCount          uint32
+	requestCount        atomic.Uint32
+	responseCount       atomic.Uint32
+	errorCount          atomic.Uint32
 	totalDuration       time.Duration
 	runningRequests     *RunningRequests
 	fileWriter          *FileWriter
 	responseErrorRanges *ResponseCodeRanges
 	collector           *colly.Collector
-	redirections        uint32
+	redirections        atomic.Uint32
 	visitMutex          sync.Mutex
 }
 
@@ -47,10 +47,6 @@ func NewGrawler(flags Flags) *Grawler {
 
 	return &Grawler{
 		flags:               flags,
-		requestCount:        0,
-		responseCount:       0,
-		errorCount:          0,
-		redirections:        0,
 		totalDuration:       time.Duration(0),
 		runningRequests:     NewRunningRequests(),
 		responseErrorRanges: errorCodeRanges,
@@ -115,7 +111,7 @@ func (g *Grawler) Grawl(grawlUrl string) {
 	c.IgnoreRobotsTxt = !g.flags.FlagRespectRobotsTxt
 	c.AllowURLRevisit = false
 	c.AllowedDomains = slices.Concat(c.AllowedDomains, g.flags.FlagAllowedDomains)
-	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Host)
+	c.AllowedDomains = append(c.AllowedDomains, parsedUrl.Hostname())
 
 	if len(g.flags.FlagURLFilters) > 0 {
 		c.URLFilters = append(c.URLFilters, regexp.MustCompile("^"+grawlUrl+"$"))
@@ -237,18 +233,17 @@ func (g *Grawler) onRequest(r *colly.Request) {
 	requestResult := NewResult(r.ID, requestUrl, foundOnUrl, g.responseErrorRanges)
 
 	g.runningRequests.Store(r.ID, requestResult, requestUrl)
-	g.requestCount++
+	g.requestCount.Add(1)
 }
 
 func (g *Grawler) onResponse(r *colly.Response) {
-	g.responseCount++
-
+	responseCount := g.responseCount.Add(1)
 	reqResult, ok := g.runningRequests.Load(r.Request.ID)
 	if !ok {
 		fmt.Printf("No start time found for %s\n", r.Request.URL)
 	}
 
-	reqResult.UpdateOnResponse(r, g.responseCount, nil, g.requestCount)
+	reqResult.UpdateOnResponse(r, responseCount, nil, g.requestCount.Load())
 	g.totalDuration += reqResult.GetDuration()
 
 	g.printResult(reqResult)
@@ -257,7 +252,7 @@ func (g *Grawler) onResponse(r *colly.Response) {
 
 func (g *Grawler) onRedirect(req *http.Request, via []*http.Request) error {
 	runningReq, ok := g.runningRequests.LoadByUrl(via[0].URL.String())
-	atomic.AddUint32(&g.redirections, 1)
+	g.redirections.Add(1)
 	if ok {
 		fmt.Printf("Redirecting to %s from %s. ID: %d\n", req.URL, via[0].URL, runningReq.id)
 	} else {
@@ -267,13 +262,13 @@ func (g *Grawler) onRedirect(req *http.Request, via []*http.Request) error {
 }
 
 func (g *Grawler) onError(r *colly.Response, err error) {
-	g.errorCount++
-	g.responseCount++
-
 	// Normal error on aborted binary files like images. Result is printed in OnResponseHeaders
 	if err != nil && errors.Is(err, colly.ErrAbortedAfterHeaders) {
 		return
 	}
+
+	g.errorCount.Add(1)
+	responseCount := g.responseCount.Add(1)
 
 	//
 	// Remove request if this url is filtered by colly
@@ -286,7 +281,7 @@ func (g *Grawler) onError(r *colly.Response, err error) {
 
 	reqResult, ok := g.runningRequests.Load(r.Request.ID)
 	if ok {
-		reqResult.UpdateOnResponse(r, g.responseCount, &err, g.requestCount)
+		reqResult.UpdateOnResponse(r, responseCount, &err, g.requestCount.Load())
 		g.totalDuration += reqResult.GetDuration()
 		g.printResult(reqResult)
 		g.checkStopOnError(reqResult)
@@ -347,13 +342,13 @@ func (g *Grawler) printSummary() {
 	fmt.Println("Duration:            ", g.totalDuration.Round(time.Millisecond))
 	fmt.Println("  - Min:             ", durationMin.Round(time.Millisecond))
 	fmt.Println("  - Max:             ", durationMax.Round(time.Millisecond))
-	fmt.Println("  - Avg:             ", time.Duration(int64(g.totalDuration)/int64(g.requestCount)).Round(time.Millisecond))
-	fmt.Println("Requests:            ", g.requestCount)
+	fmt.Println("  - Avg:             ", time.Duration(int64(g.totalDuration)/int64(g.requestCount.Load())).Round(time.Millisecond))
+	fmt.Println("Requests:            ", g.requestCount.Load())
 	for _, code := range returnCodeKeys {
 		fmt.Printf("  - Status code %d:  %d\n", code, returnCodes[code])
 	}
 	fmt.Printf("  - Other errors:     %d\n", returnErrors)
-	fmt.Printf("  - Redirections:     %d\n", g.redirections)
+	fmt.Printf("  - Redirections:     %d\n", g.redirections.Load())
 }
 
 func (g *Grawler) printResult(result *Result) {
@@ -449,7 +444,8 @@ func (g *Grawler) onResponseHeaders(r *colly.Response) {
 	r.Request.Abort()
 	reqResult, ok := g.runningRequests.Load(r.Request.ID)
 	if ok {
-		reqResult.UpdateOnResponse(r, g.responseCount, nil, g.requestCount)
+		responseCount := g.responseCount.Add(1)
+		reqResult.UpdateOnResponse(r, responseCount, nil, g.requestCount.Load())
 		g.totalDuration += reqResult.GetDuration()
 		g.printResult(reqResult)
 		g.checkStopOnError(reqResult)
