@@ -16,9 +16,10 @@ var (
 		Aliases: []string{"crawl"},
 		Short:   "Crawls the given url",
 		Long:    `This command scrapes and visits all urls from a page or uses an existing sitemap.xml.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			url := args[0]
 			warmItUp(url)
+			return nil
 		},
 		Args: cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 	}

@@ -111,3 +111,7 @@ tasks:
             DEBUG: 1
         cmds:
             - go run .
+
+    test:
+        cmds:
+            - go test -v ./...
