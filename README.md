@@ -1,5 +1,11 @@
-# Grawler
-                                                                                    
+<div align="center">
+    <img src="icon.svg">
+    <h1>Grawler</h1>
+    <blockquote>
+        <p dir="auto">Web crawler that discovers and visits relative links on a website.</p>
+    </blockquote>
+</div>
+
 Grawler is a web crawler written in go. It scrapes the website of the given url and finds all relative 
 links and visit these urls. Initially this application was developed to build up the cache of a page and to 
 check the availability of existing pages.
